@@ -1,5 +1,7 @@
 # Botiga · Club Hoquei Ripollet
 
+Web en **català i castellano** (selector CA/ES arriba a la derecha; los correos llegan en el idioma de cada familia).
+
 Web para gestionar los pedidos de marxandatge del club (camisetas, sudaderas, bufandas, botelleros…).
 El pago se hace en mano a la comisión. La web controla qué ha pedido cada familia, cuánto debe y en qué estado está cada pedido, y envía correos de confirmación en cada paso.
 
@@ -11,18 +13,38 @@ El pago se hace en mano a la comisión. La web controla qué ha pedido cada fami
 - **Tienda** con desplegable por tipo de producto, foto, precio, cantidad y talla. Los productos marcados como «nombre + dorsal» (p. ej. el botellero) piden ambos datos (se rellenan solos con los del jugador/a).
 - **Carrito** → revisar → «Realizar pedido». El pedido queda **pendiente de pago** y se puede cancelar mientras no esté pagado.
 - **Mis pedidos**: todos los pedidos con su estado, el importe pendiente y el historial.
-- Cuando el pedido está pagado aparece un **código QR** (y un código de 6 caracteres) para recogerlo.
+- Al hacer el pedido recibe por correo el **QR de pago**. Al pagar, recibe el **comprobante** y el **QR de recogida** (también visibles en «Mis pedidos»).
 - Barra superior con el periodo de pedidos y la **cuenta atrás hasta el cierre**.
 
 **Comisión (admin)**
 - **Panel**: pedidos por estado, dinero cobrado y pendiente de cobrar, familias activadas.
 - **Pedidos**: filtros por estado, periodo y búsqueda (nombre, DNI, correo, nº de pedido); botón rápido «Marcar pagado»; exportación a Excel (CSV); historial de cada pedido con quién hizo cada cambio.
-- **Entregar**: al escanear el QR de la familia con la cámara del móvil (con la sesión de la comisión iniciada) se abre el pedido y se confirma la entrega. También se puede teclear el código de 6 caracteres. Si la familia no tiene el QR ni el código, se puede forzar la entrega indicando el motivo (queda registrado). La URL del QR solo funciona para la comisión: una familia no puede marcar su propio pedido como entregado.
+- **Escanear**: lector de QR dentro de la propia web (cámara del móvil) o con la cámara normal del móvil. Ver «Pago y entrega con QR».
+- **Caja por persona**: cuánto ha cobrado cada miembro de la comisión, para cuadrar el dinero en mano.
+- **Aviso «listo para recoger»**: cuando llega el material, un botón envía a todas las familias pagadas un correo con su QR de recogida y un mensaje (día, hora y lugar).
 - **Resumen** para el proveedor: unidades por producto y talla, más el listado de personalizaciones (nombre y dorsal). Imprimible.
-- **Productos** (foto, precio, categoría, tallas, «requiere nombre + dorsal», visible/oculto) y **categorías**.
+- **Productos** (nombre y descripción en castellano y, opcionalmente, en catalán; foto, precio, categoría, tallas, «requiere nombre + dorsal», visible/oculto) y **categorías**.
 - **Periodos de pedidos**: fechas de apertura y cierre (hora de Madrid). Fuera de un periodo no se puede añadir al carrito ni confirmar pedidos.
 - **Familias**: alta individual o importación pegando desde Excel (`DNI;Nombre;Dorsal;Equipo`), edición de datos y correo, reinicio del acceso.
 - **Administradores** y **registro de correos** enviados (sin contraseñas).
+
+### Pago y entrega con QR
+
+```
+Familia hace el pedido ──▶ correo con QR DE PAGO
+        │
+Paga en mano ──▶ la comisión escanea el QR de pago ──▶ «Cobrado» (queda registrado quién cobra)
+        │                                               └──▶ correo: COMPROBANTE + QR DE RECOGIDA
+Llega el material ──▶ la comisión pulsa «Avisar: listo para recoger» ──▶ correo a todas las familias pagadas
+        │
+Recoge ──▶ la comisión escanea el QR de recogida ──▶ «Confirmar entrega» ──▶ correo de entregado
+```
+
+- Cada QR solo sirve para su paso: con el QR de pago no se puede entregar y el de recogida no existe hasta que se paga.
+- El QR solo funciona con la sesión de la comisión iniciada: si una familia lo abre, no puede cambiar nada.
+- Si se deshace un cobro, el QR de recogida anterior deja de valer.
+- Plan B sin móvil: cobrar buscando el pedido por nombre; entregar tecleando el código de recogida de 6 caracteres; o, en último caso, marcar como entregado indicando el motivo (queda registrado).
+- El lector de QR dentro de la web necesita HTTPS (cualquier hosting lo da).
 
 ### Estados de un pedido
 
@@ -44,9 +66,10 @@ Requisitos: Node.js 20 o superior.
 ```bash
 npm install
 cp .env.example .env        # y edítalo (SESSION_SECRET, APP_URL, SMTP…)
-npm run create-admin -- comision "una-contraseña-larga" comision@ejemplo.com
 npm start                   # http://localhost:3000
 ```
+
+**Primer administrador**: define `ADMIN_USER` y `ADMIN_PASSWORD` (mín. 10 caracteres) en el `.env` o en las variables del hosting y se crea solo al arrancar. También se puede crear con `npm run create-admin -- usuario "contraseña" correo`. El resto de la comisión se da de alta desde *Administradores*.
 
 Para probarlo con datos de ejemplo: `npm run seed-demo` (admin `comision` / `comision-demo` y DNIs `12345678Z`, `87654321X`, `X1234567L`).
 

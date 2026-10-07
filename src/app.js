@@ -6,6 +6,19 @@ const { SqliteStore } = require('./session-store');
 const { createMailer } = require('./mailer');
 const { shopStatus, createOrderService } = require('./services');
 const util = require('./util');
+const { LANGS, translate, detectLang, localized } = require('./i18n');
+
+function setLocale(req, res, lang) {
+  req.lang = lang;
+  req.t = (key, params) => translate(lang, key, params);
+  Object.assign(res.locals, {
+    lang,
+    t: req.t,
+    loc: (obj, field) => localized(lang, obj, field),
+    formatDate: (iso, withTime) => util.formatDate(iso, withTime, lang),
+    statusLabel: (status) => req.t(util.STATUS[status].label),
+  });
+}
 
 function createApp(db, options = {}) {
   const app = express();
@@ -25,7 +38,17 @@ function createApp(db, options = {}) {
     res.set('Referrer-Policy', 'same-origin');
     next();
   });
+  app.use((req, res, next) => {
+    // Valores por defecto para poder pintar páginas de error aunque falle algo antes de cargar la sesión.
+    Object.assign(res.locals, util, {
+      user: null, csrf: '', path: req.path, flash: null, cartCount: 0, shop: { open: false },
+      clubName: process.env.CLUB_NAME || 'Club Hoquei Ripollet',
+    });
+    setLocale(req, res, detectLang(req));
+    next();
+  });
   app.use('/static', express.static(path.join(__dirname, '..', 'public'), { maxAge: '1h' }));
+  app.get('/static/vendor/jsQR.js', (req, res) => res.sendFile(require.resolve('jsqr/dist/jsQR.js')));
   app.use('/uploads', express.static(uploadDir, { maxAge: '1d' }));
   app.use(express.urlencoded({ extended: false, limit: '200kb' }));
 
@@ -53,7 +76,8 @@ function createApp(db, options = {}) {
     if (req.session.userId && !req.user) delete req.session.userId;
     req.appUrl = (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
 
-    Object.assign(res.locals, util, {
+    setLocale(req, res, detectLang(req, req.user));
+    Object.assign(res.locals, {
       user: req.user,
       csrf: req.session.csrf,
       path: req.path,
@@ -76,6 +100,20 @@ function createApp(db, options = {}) {
       return res.status(403).render('error', { title: 'Sesión caducada', message: 'El formulario ha caducado. Vuelve atrás, recarga la página e inténtalo de nuevo.' });
     }
     next();
+  });
+
+  // Cambio de idioma (se recuerda en una cookie y en la cuenta, para que los correos lleguen en ese idioma).
+  const setUserLang = db.prepare('UPDATE users SET lang = ? WHERE id = ?');
+  app.get('/idioma/:lang', (req, res) => {
+    const lang = LANGS.includes(req.params.lang) ? req.params.lang : 'ca';
+    res.cookie('lang', lang, { maxAge: 365 * 86400000, sameSite: 'lax', httpOnly: true });
+    if (req.user) setUserLang.run(lang, req.user.id);
+    let back = '/';
+    try {
+      const ref = new URL(req.get('referer') || '');
+      if (ref.host === req.get('host')) back = ref.pathname + ref.search;
+    } catch { /* sin referer válido */ }
+    res.redirect(back);
   });
 
   app.use(require('./routes/auth')(ctx));

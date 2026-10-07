@@ -1,22 +1,22 @@
 <%- include('../partials/header') %>
 <section class="auth">
   <div class="card narrow">
-    <h1>Entrar a la botiga</h1>
-    <p class="muted">Familias: usuario = <strong>DNI del jugador/a</strong>. Comisión: tu usuario.</p>
-    <% if (typeof error !== 'undefined') { %><div class="flash error"><%= error %></div><% } %>
+    <h1><%= t('Entrar a la botiga') %></h1>
+    <p class="muted"><%= t('Familias: usuario = DNI del jugador/a. Comisión: tu usuario.') %></p>
+    <% if (typeof error !== 'undefined') { %><div class="flash error"><%= t(error) %></div><% } %>
     <form method="post" action="/login" class="form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
-      <label>DNI del jugador/a (o usuario)
+      <label><%= t('DNI del jugador/a (o usuario)') %>
         <input name="usuario" value="<%= usuario %>" autocomplete="username" autocapitalize="characters" required autofocus>
       </label>
-      <label>Contraseña
+      <label><%= t('Contraseña') %>
         <input type="password" name="password" autocomplete="current-password" required>
       </label>
-      <button class="btn primary block">Entrar</button>
+      <button class="btn primary block"><%= t('Entrar') %></button>
     </form>
     <div class="auth-links">
-      <a href="/primer-acceso" class="btn ghost block">Primer acceso (activar cuenta)</a>
-      <a href="/recuperar">He olvidado mi contraseña</a>
+      <a href="/primer-acceso" class="btn ghost block"><%= t('Primer acceso (activar cuenta)') %></a>
+      <a href="/recuperar"><%= t('He olvidado mi contraseña') %></a>
     </div>
   </div>
 </section>

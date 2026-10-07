@@ -1,40 +1,40 @@
 <%- include('../partials/header') %>
-<p><a href="/admin/familias">← Familias</a></p>
+<p><a href="/admin/familias">← <%= t('Familias') %></a></p>
 <h1><%= family.player_name %></h1>
 <div class="grid two">
   <form method="post" action="/admin/familias/<%= family.id %>" class="card form">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
-    <h2>Datos</h2>
+    <h2><%= t('Datos') %></h2>
     <label>DNI <input name="dni" value="<%= family.dni %>" required></label>
-    <label>Nombre y apellidos <input name="player_name" value="<%= family.player_name %>" required></label>
+    <label><%= t('Nombre y apellidos') %> <input name="player_name" value="<%= family.player_name %>" required></label>
     <div class="row">
-      <label>Dorsal <input name="player_number" value="<%= family.player_number || '' %>" class="qty"></label>
-      <label class="grow">Equipo <input name="team" value="<%= family.team || '' %>"></label>
+      <label><%= t('Dorsal') %> <input name="player_number" value="<%= family.player_number || '' %>" class="qty"></label>
+      <label class="grow"><%= t('Equipo') %> <input name="team" value="<%= family.team || '' %>"></label>
     </div>
-    <label>Correo de contacto <input type="email" name="email" value="<%= family.email || '' %>"></label>
-    <button class="btn primary">Guardar</button>
+    <label><%= t('Correo de contacto') %> <input type="email" name="email" value="<%= family.email || '' %>"></label>
+    <button class="btn primary"><%= t('Guardar') %></button>
   </form>
   <section class="card">
-    <h2>Acceso</h2>
+    <h2><%= t('Acceso') %></h2>
     <% if (family.activated_at) { %>
-      <p>Cuenta activada el <%= formatDate(family.activated_at) %>.</p>
+      <p><%= t('Cuenta activada el {date}.', { date: formatDate(family.activated_at) }) %></p>
     <% } else { %>
-      <p>La familia aún no ha hecho el primer acceso.</p>
+      <p><%= t('La familia aún no ha hecho el primer acceso.') %></p>
     <% } %>
-    <form method="post" action="/admin/familias/<%= family.id %>/reiniciar" data-confirm="Se borrará la contraseña y el correo y la familia tendrá que volver a hacer el «Primer acceso». ¿Continuar?">
+    <form method="post" action="/admin/familias/<%= family.id %>/reiniciar" data-confirm="<%= t('Se borrará la contraseña y el correo y la familia tendrá que volver a hacer el «Primer acceso». ¿Continuar?') %>">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
-      <button class="btn ghost">Reiniciar acceso</button>
+      <button class="btn ghost"><%= t('Reiniciar acceso') %></button>
     </form>
-    <p class="hint">Útil si la familia ha perdido el acceso a su correo o si alguien activó la cuenta por error.</p>
+    <p class="hint"><%= t('Útil si la familia ha perdido el acceso a su correo o si alguien activó la cuenta por error.') %></p>
     <% if (!list.length) { %>
-      <form method="post" action="/admin/familias/<%= family.id %>/eliminar" data-confirm="¿Eliminar a <%= family.player_name %>?">
+      <form method="post" action="/admin/familias/<%= family.id %>/eliminar" data-confirm="<%= t('¿Eliminar a {name}?', { name: family.player_name }) %>">
         <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <button class="btn danger ghost small">Eliminar</button>
+        <button class="btn danger ghost small"><%= t('Eliminar') %></button>
       </form>
     <% } %>
   </section>
 </div>
-<h2>Pedidos</h2>
+<h2><%= t('Pedidos') %></h2>
 <div class="order-list">
   <% list.forEach(o => { %>
     <a class="card order-row" href="/admin/pedidos/<%= o.id %>">
@@ -42,6 +42,6 @@
       <div class="right"><%- include('../partials/status', { status: o.status }) %><br><strong><%= formatMoney(o.total_cents) %></strong></div>
     </a>
   <% }) %>
-  <% if (!list.length) { %><p class="muted">Sin pedidos.</p><% } %>
+  <% if (!list.length) { %><p class="muted"><%= t('Sin pedidos.') %></p><% } %>
 </div>
 <%- include('../partials/footer') %>

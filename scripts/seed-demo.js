@@ -19,13 +19,14 @@ db.transaction(() => {
   fam.run('X1234567L', 'Nil Garcia Vidal', '3', 'Infantil');
 
   if (!db.prepare('SELECT 1 FROM products').get()) {
-    const p = db.prepare(`INSERT INTO products (category_id, name, description, price_cents, personalization, sizes)
-      VALUES (?, ?, ?, ?, ?, ?)`);
-    p.run(cat('camisetas'), 'Camiseta de paseo', 'Algodón, con escudo del club.', 1500, 0, '6, 8, 10, 12, 14, S, M, L, XL');
-    p.run(cat('sudaderas'), 'Sudadera con capucha', 'Sudadera azul con escudo bordado.', 3200, 0, '6, 8, 10, 12, 14, S, M, L, XL');
-    p.run(cat('accesorios'), 'Botellero personalizado', 'Botella de agua con nombre y dorsal del jugador/a.', 1200, 1, null);
-    p.run(cat('bufandas'), 'Bufanda del club', 'Bufanda de punto con los colores del club.', 1000, 0, null);
-    p.run(cat('mochilas'), 'Mochila deportiva', 'Mochila con compartimento para patines.', 2800, 0, null);
+    const p = db.prepare(`INSERT INTO products (category_id, name, name_ca, description, description_ca, price_cents, personalization, sizes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+    const sizes = '6, 8, 10, 12, 14, S, M, L, XL';
+    p.run(cat('camisetas'), 'Camiseta de paseo', 'Samarreta de passeig', 'Algodón, con escudo del club.', 'Cotó, amb l\'escut del club.', 1500, 0, sizes);
+    p.run(cat('sudaderas'), 'Sudadera con capucha', 'Dessuadora amb caputxa', 'Sudadera azul con escudo bordado.', 'Dessuadora blava amb l\'escut brodat.', 3200, 0, sizes);
+    p.run(cat('accesorios'), 'Botellero personalizado', 'Ampolla personalitzada', 'Botella de agua con nombre y dorsal del jugador/a.', 'Ampolla d\'aigua amb el nom i el dorsal del jugador/a.', 1200, 1, null);
+    p.run(cat('bufandas'), 'Bufanda del club', 'Bufanda del club', 'Bufanda de punto con los colores del club.', 'Bufanda de punt amb els colors del club.', 1000, 0, null);
+    p.run(cat('mochilas'), 'Mochila deportiva', 'Motxilla esportiva', 'Mochila con compartimento para patines.', 'Motxilla amb compartiment per als patins.', 2800, 0, null);
   }
 
   if (!db.prepare('SELECT 1 FROM periods').get()) {

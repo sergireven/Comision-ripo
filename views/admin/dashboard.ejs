@@ -1,51 +1,66 @@
 <%- include('../partials/header') %>
-<h1>Panel de la comisión</h1>
+<div class="page-head">
+  <h1><%= t('Panel de la comisión') %></h1>
+  <a class="btn primary big" href="/admin/escanear">📷 <%= t('Escanear QR') %></a>
+</div>
 <div class="stats">
   <a class="stat warn" href="/admin/pedidos?estado=pendiente_pago">
-    <span class="stat-label">Pendientes de pago</span>
+    <span class="stat-label"><%= t('Pendientes de pago') %></span>
     <span class="stat-value"><%= stats.pendiente_pago.n %></span>
-    <span class="stat-sub">Por cobrar: <strong><%= formatMoney(stats.pendiente_pago.total) %></strong></span>
+    <span class="stat-sub"><%= t('Por cobrar') %>: <strong><%= formatMoney(stats.pendiente_pago.total) %></strong></span>
   </a>
   <a class="stat info" href="/admin/pedidos?estado=pendiente_entrega">
-    <span class="stat-label">Pagados, pendientes de entrega</span>
+    <span class="stat-label"><%= t('Pagados, pendientes de entrega') %></span>
     <span class="stat-value"><%= stats.pendiente_entrega.n %></span>
-    <span class="stat-sub">Cobrado: <%= formatMoney(stats.pendiente_entrega.total) %></span>
+    <span class="stat-sub"><%= t('Cobrado') %>: <%= formatMoney(stats.pendiente_entrega.total) %></span>
   </a>
   <a class="stat ok" href="/admin/pedidos?estado=entregado">
-    <span class="stat-label">Entregados</span>
+    <span class="stat-label"><%= t('Entregados') %></span>
     <span class="stat-value"><%= stats.entregado.n %></span>
-    <span class="stat-sub">Cobrado: <%= formatMoney(stats.entregado.total) %></span>
+    <span class="stat-sub"><%= t('Cobrado') %>: <%= formatMoney(stats.entregado.total) %></span>
   </a>
   <a class="stat muted" href="/admin/pedidos?estado=cancelado">
-    <span class="stat-label">Cancelados</span>
+    <span class="stat-label"><%= t('Cancelados') %></span>
     <span class="stat-value"><%= stats.cancelado.n %></span>
     <span class="stat-sub">&nbsp;</span>
   </a>
 </div>
 
+<% if (awaitingNotice) { %>
+  <div class="card highlight row wrap-row between">
+    <span><%= t('{n} pedido(s) pagado(s) aún sin aviso de recogida.', { n: awaitingNotice }) %></span>
+    <a class="btn" href="/admin/pedidos?estado=pendiente_entrega"><%= t('Avisar cuando llegue el material') %></a>
+  </div>
+<% } %>
+
 <div class="grid two">
   <section class="card">
-    <h2>Caja</h2>
+    <h2><%= t('Caja') %></h2>
     <dl class="kv">
-      <dt>Total cobrado</dt><dd><strong><%= formatMoney(stats.pendiente_entrega.total + stats.entregado.total) %></strong></dd>
-      <dt>Pendiente de cobrar</dt><dd><%= formatMoney(stats.pendiente_pago.total) %></dd>
-      <dt>Familias activadas</dt><dd><%= families.active %> de <%= families.total %></dd>
+      <dt><%= t('Total cobrado') %></dt><dd><strong><%= formatMoney(stats.pendiente_entrega.total + stats.entregado.total) %></strong></dd>
+      <dt><%= t('Pendiente de cobrar') %></dt><dd><%= formatMoney(stats.pendiente_pago.total) %></dd>
+      <dt><%= t('Familias activadas') %></dt><dd><%= t('{a} de {b}', { a: families.active, b: families.total }) %></dd>
     </dl>
-    <div class="row wrap-row">
-      <a class="btn primary" href="/admin/entrega">Entregar pedido (QR / código)</a>
-      <a class="btn" href="/admin/resumen">Resumen para el proveedor</a>
-    </div>
+    <h3><%= t('Cobrado por cada miembro de la comisión') %></h3>
+    <% if (!cash.length) { %><p class="muted small"><%= t('Aún no se ha cobrado nada.') %></p><% } %>
+    <ul class="plain">
+      <% cash.forEach(c => { %>
+        <li><span><%= c.username || '—' %></span><span class="right"><%= t('{n} pedido(s)', { n: c.n }) %> · <strong><%= formatMoney(c.total) %></strong></span></li>
+      <% }) %>
+    </ul>
+    <p class="hint"><%= t('Sirve para cuadrar el dinero que tiene cada persona con lo registrado en la web.') %></p>
   </section>
   <section class="card">
-    <h2>Últimos pedidos</h2>
-    <% if (!recent.length) { %><p class="muted">Aún no hay pedidos.</p><% } %>
+    <h2><%= t('Últimos pedidos') %></h2>
+    <% if (!recent.length) { %><p class="muted"><%= t('Aún no hay pedidos.') %></p><% } %>
     <ul class="plain">
       <% recent.forEach(o => { %>
         <li><a href="/admin/pedidos/<%= o.id %>"><%= orderCode(o.id) %> · <%= o.player_name %></a>
           <span class="right"><%= formatMoney(o.total_cents) %> <%- include('../partials/status', { status: o.status }) %></span></li>
       <% }) %>
     </ul>
+    <p><a class="btn" href="/admin/resumen"><%= t('Resumen para el proveedor') %></a></p>
   </section>
 </div>
-<p class="small"><a href="/admin/categorias">Categorías</a> · <a href="/admin/admins">Administradores</a> · <a href="/admin/emails">Correos enviados</a></p>
+<p class="small"><a href="/admin/categorias"><%= t('Categorías') %></a> · <a href="/admin/admins"><%= t('Administradores') %></a> · <a href="/admin/emails"><%= t('Correos enviados') %></a></p>
 <%- include('../partials/footer') %>

@@ -1,34 +1,35 @@
 <%- include('../partials/header') %>
-<h1>Mi cuenta</h1>
+<h1><%= t('Mi cuenta') %></h1>
 <div class="grid two">
   <section class="card">
-    <h2>Datos</h2>
+    <h2><%= t('Datos') %></h2>
     <dl class="kv">
       <% if (user.role === 'family') { %>
-        <dt>Jugador/a</dt><dd><%= user.player_name %></dd>
-        <dt>DNI (usuario)</dt><dd><%= user.dni %></dd>
-        <% if (user.player_number) { %><dt>Dorsal</dt><dd><%= user.player_number %></dd><% } %>
-        <% if (user.team) { %><dt>Equipo</dt><dd><%= user.team %></dd><% } %>
+        <dt><%= t('Jugador/a') %></dt><dd><%= user.player_name %></dd>
+        <dt><%= t('DNI (usuario)') %></dt><dd><%= user.dni %></dd>
+        <% if (user.player_number) { %><dt><%= t('Dorsal') %></dt><dd><%= user.player_number %></dd><% } %>
+        <% if (user.team) { %><dt><%= t('Equipo') %></dt><dd><%= user.team %></dd><% } %>
       <% } else { %>
-        <dt>Usuario</dt><dd><%= user.username %></dd>
+        <dt><%= t('Usuario') %></dt><dd><%= user.username %></dd>
       <% } %>
+      <dt><%= t('Idioma') %></dt><dd><a href="/idioma/ca">Català</a> · <a href="/idioma/es">Castellano</a></dd>
     </dl>
     <form method="post" action="/cuenta/email" class="form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
-      <label>Correo de contacto
+      <label><%= t('Correo de contacto') %>
         <input type="email" name="email" value="<%= user.email || '' %>" required>
       </label>
-      <button class="btn">Guardar correo</button>
+      <button class="btn"><%= t('Guardar correo') %></button>
     </form>
   </section>
   <section class="card">
-    <h2>Cambiar contraseña</h2>
+    <h2><%= t('Cambiar contraseña') %></h2>
     <form method="post" action="/cuenta/password" class="form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
-      <label>Contraseña actual <input type="password" name="current" autocomplete="current-password" required></label>
-      <label>Nueva contraseña (mín. 8) <input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
-      <label>Repite la nueva <input type="password" name="password2" autocomplete="new-password" minlength="8" required></label>
-      <button class="btn">Cambiar contraseña</button>
+      <label><%= t('Contraseña actual') %> <input type="password" name="current" autocomplete="current-password" required></label>
+      <label><%= t('Nueva contraseña (mín. 8)') %> <input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
+      <label><%= t('Repite la nueva') %> <input type="password" name="password2" autocomplete="new-password" minlength="8" required></label>
+      <button class="btn"><%= t('Cambiar contraseña') %></button>
     </form>
   </section>
 </div>

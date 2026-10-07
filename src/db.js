@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   player_number TEXT,                     -- dorsal
   team          TEXT,
   email         TEXT,
+  lang          TEXT,                     -- idioma preferido ('ca' | 'es')
   password_hash TEXT,
   activated_at  TEXT,
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS reset_tokens (
 CREATE TABLE IF NOT EXISTS categories (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   name       TEXT NOT NULL,
+  name_ca    TEXT,
   slug       TEXT NOT NULL UNIQUE,
   sort_order INTEGER NOT NULL DEFAULT 0
 );
@@ -36,7 +38,9 @@ CREATE TABLE IF NOT EXISTS products (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   category_id     INTEGER REFERENCES categories(id) ON DELETE SET NULL,
   name            TEXT NOT NULL,
+  name_ca         TEXT,
   description     TEXT,
+  description_ca  TEXT,
   price_cents     INTEGER NOT NULL CHECK (price_cents >= 0),
   image           TEXT,
   personalization INTEGER NOT NULL DEFAULT 0, -- 1 = requiere nombre + dorsal
@@ -60,12 +64,16 @@ CREATE TABLE IF NOT EXISTS orders (
   user_id       INTEGER NOT NULL REFERENCES users(id),
   status        TEXT NOT NULL CHECK (status IN ('pendiente_pago', 'pendiente_entrega', 'entregado', 'cancelado')),
   total_cents   INTEGER NOT NULL,
-  qr_token      TEXT NOT NULL UNIQUE,
-  delivery_code TEXT NOT NULL UNIQUE,
+  pay_token     TEXT NOT NULL UNIQUE,     -- QR de pago (se envía al hacer el pedido)
+  pickup_token  TEXT UNIQUE,              -- QR de recogida (se genera al pagar)
+  pickup_code   TEXT UNIQUE,              -- código de recogida de 6 caracteres
   period_id     INTEGER REFERENCES periods(id) ON DELETE SET NULL,
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   paid_at       TEXT,
+  paid_by       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ready_at      TEXT,                     -- aviso «listo para recoger» enviado
   delivered_at  TEXT,
+  delivered_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
   cancelled_at  TEXT
 );
 
@@ -74,6 +82,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   order_id         INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
   product_id       INTEGER REFERENCES products(id) ON DELETE SET NULL,
   product_name     TEXT NOT NULL,
+  product_name_ca  TEXT,
   unit_price_cents INTEGER NOT NULL,
   quantity         INTEGER NOT NULL,
   size             TEXT,
@@ -115,16 +124,17 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_paid_by ON orders(paid_by);
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_cart_user ON cart_items(user_id);
 `;
 
 const DEFAULT_CATEGORIES = [
-  ['Camisetas', 'camisetas'],
-  ['Sudaderas', 'sudaderas'],
-  ['Accesorios', 'accesorios'],
-  ['Bufandas', 'bufandas'],
-  ['Mochilas', 'mochilas'],
+  ['Camisetas', 'Samarretes', 'camisetas'],
+  ['Sudaderas', 'Dessuadores', 'sudaderas'],
+  ['Accesorios', 'Accessoris', 'accesorios'],
+  ['Bufandas', 'Bufandes', 'bufandas'],
+  ['Mochilas', 'Motxilles', 'mochilas'],
 ];
 
 function openDb(file) {
@@ -137,10 +147,31 @@ function openDb(file) {
 
   const count = db.prepare('SELECT COUNT(*) AS n FROM categories').get().n;
   if (count === 0) {
-    const insert = db.prepare('INSERT INTO categories (name, slug, sort_order) VALUES (?, ?, ?)');
-    DEFAULT_CATEGORIES.forEach(([name, slug], i) => insert.run(name, slug, i));
+    const insert = db.prepare('INSERT INTO categories (name, name_ca, slug, sort_order) VALUES (?, ?, ?, ?)');
+    DEFAULT_CATEGORIES.forEach(([name, nameCa, slug], i) => insert.run(name, nameCa, slug, i));
   }
+  ensureAdmin(db);
   return db;
 }
 
-module.exports = { openDb };
+/**
+ * Crea el primer administrador a partir de ADMIN_USER / ADMIN_PASSWORD (útil en hostings sin consola).
+ * Si el usuario ya existe no se toca su contraseña.
+ */
+function ensureAdmin(db, env = process.env) {
+  const username = String(env.ADMIN_USER || '').trim().toLowerCase();
+  if (!username || !env.ADMIN_PASSWORD) return false;
+  if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) return false;
+  if (String(env.ADMIN_PASSWORD).length < 10) {
+    console.error('ADMIN_PASSWORD debe tener al menos 10 caracteres: no se ha creado el administrador.');
+    return false;
+  }
+  const bcrypt = require('bcryptjs');
+  db.prepare(`INSERT INTO users (role, username, email, password_hash, activated_at, player_name)
+    VALUES ('admin', ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), ?)`)
+    .run(username, env.ADMIN_EMAIL || null, bcrypt.hashSync(String(env.ADMIN_PASSWORD), 10), username);
+  console.log(`Administrador «${username}» creado a partir de ADMIN_USER.`);
+  return true;
+}
+
+module.exports = { openDb, ensureAdmin };

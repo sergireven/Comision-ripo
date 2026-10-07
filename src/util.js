@@ -54,11 +54,11 @@ function parseMoney(value) {
   return Math.round(Number(str) * 100);
 }
 
-function formatDate(iso, withTime = true) {
+function formatDate(iso, withTime = true, lang = 'es') {
   if (!iso) return '';
   const opts = { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric' };
   if (withTime) Object.assign(opts, { hour: '2-digit', minute: '2-digit' });
-  return new Intl.DateTimeFormat('es-ES', opts).format(new Date(iso));
+  return new Intl.DateTimeFormat(lang === 'ca' ? 'ca-ES' : 'es-ES', opts).format(new Date(iso));
 }
 
 /** ISO -> valor para <input type="datetime-local"> en hora de Madrid. */

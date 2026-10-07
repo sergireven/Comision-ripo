@@ -1,53 +1,53 @@
 <%- include('../partials/header') %>
 <div class="page-head">
-  <h1>Tienda</h1>
+  <h1><%= t('Tienda') %></h1>
   <form method="get" action="/tienda" class="filter">
-    <label for="cat" class="sr-only">Tipo de producto</label>
+    <label for="cat" class="sr-only"><%= t('Tipo de producto') %></label>
     <select id="cat" name="categoria" data-autosubmit>
-      <option value="">Todos los productos</option>
+      <option value=""><%= t('Todos los productos') %></option>
       <% categories.forEach(c => { %>
-        <option value="<%= c.slug %>" <%= selected && selected.id === c.id ? 'selected' : '' %>><%= c.name %></option>
+        <option value="<%= c.slug %>" <%= selected && selected.id === c.id ? 'selected' : '' %>><%= loc(c, 'name') %></option>
       <% }) %>
     </select>
-    <noscript><button class="btn">Ver</button></noscript>
+    <noscript><button class="btn"><%= t('Ver') %></button></noscript>
   </form>
 </div>
 
 <% if (!products.length) { %>
-  <div class="card center muted">Todavía no hay productos en esta sección.</div>
+  <div class="card center muted"><%= t('Todavía no hay productos en esta sección.') %></div>
 <% } %>
 
 <div class="products">
 <% products.forEach(p => { const sizes = parseSizes(p.sizes); %>
   <article class="product card">
     <div class="product-img">
-      <% if (p.image) { %><img src="/uploads/<%= p.image %>" alt="<%= p.name %>" loading="lazy"><% } else { %><img src="/static/img/logo.svg" alt="" class="placeholder"><% } %>
+      <% if (p.image) { %><img src="/uploads/<%= p.image %>" alt="<%= loc(p, 'name') %>" loading="lazy"><% } else { %><img src="/static/img/logo.svg" alt="" class="placeholder"><% } %>
     </div>
     <div class="product-body">
-      <h2><%= p.name %></h2>
-      <% if (p.description) { %><p class="muted small"><%= p.description %></p><% } %>
+      <h2><%= loc(p, 'name') %></h2>
+      <% if (loc(p, 'description')) { %><p class="muted small"><%= loc(p, 'description') %></p><% } %>
       <div class="price"><%= formatMoney(p.price_cents) %></div>
       <form method="post" action="/carrito/anadir" class="form compact">
         <input type="hidden" name="_csrf" value="<%= csrf %>">
         <input type="hidden" name="product_id" value="<%= p.id %>">
         <% if (sizes.length) { %>
-          <label>Talla
+          <label><%= t('Talla') %>
             <select name="size" required>
-              <option value="">Elige…</option>
+              <option value=""><%= t('Elige…') %></option>
               <% sizes.forEach(s => { %><option><%= s %></option><% }) %>
             </select>
           </label>
         <% } %>
         <% if (p.personalization) { %>
           <div class="row">
-            <label class="grow">Nombre <input name="custom_name" maxlength="30" value="<%= user.player_name ? user.player_name.split(' ')[0] : '' %>" required></label>
-            <label class="w-dorsal">Dorsal <input name="custom_number" inputmode="numeric" pattern="\d{1,3}" maxlength="3" value="<%= user.player_number || '' %>" required></label>
+            <label class="grow"><%= t('Nombre') %> <input name="custom_name" maxlength="30" value="<%= user.player_name ? user.player_name.split(' ')[0] : '' %>" required></label>
+            <label class="w-dorsal"><%= t('Dorsal') %> <input name="custom_number" inputmode="numeric" pattern="\d{1,3}" maxlength="3" value="<%= user.player_number || '' %>" required></label>
           </div>
-          <p class="hint">Se personaliza con nombre y dorsal.</p>
+          <p class="hint"><%= t('Se personaliza con nombre y dorsal.') %></p>
         <% } %>
         <div class="row">
-          <label class="w-qty">Cantidad <input type="number" name="quantity" min="1" max="50" value="1" required></label>
-          <button class="btn primary grow" <%= shop.open ? '' : 'disabled' %>>Añadir al carrito</button>
+          <label class="w-qty"><%= t('Cantidad') %> <input type="number" name="quantity" min="1" max="50" value="1" required></label>
+          <button class="btn primary grow" <%= shop.open ? '' : 'disabled' %>><%= t('Añadir al carrito') %></button>
         </div>
       </form>
     </div>

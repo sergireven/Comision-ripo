@@ -66,7 +66,7 @@ test('flujo completo: primer acceso, pedido, pago y entrega con QR', async () =>
   const password = /class="secret">([^<]+)</.exec(res.text)[1];
   assert.match(password, /^RIPO-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
   await wait();
-  assert.ok(mails().some((m) => m.to_address === 'fam@example.com' && /activ|acceso/i.test(m.subject)));
+  assert.ok(mails().some((m) => m.to_address === 'fam@example.com' && /activ|acc[eé]s/i.test(m.subject)));
   assert.ok(!mails().some((m) => m.body.includes(password)), 'la contraseña no se guarda en el registro');
 
   // Segundo intento de activar: rechazado
@@ -103,7 +103,7 @@ test('flujo completo: primer acceso, pedido, pago y entrega con QR', async () =>
   const local = (ms) => toLocalInput(new Date(Date.now() + ms).toISOString());
   res = await adm.post('/admin/periodos').type('form').send({ _csrf: await csrfOf(adm, '/admin/periodos'), name: 'Navidad', starts_at: local(-3600e3), ends_at: local(86400e3) });
   res = await fam.get('/tienda');
-  assert.match(res.text, /Pedidos abiertos/);
+  assert.match(res.text, /Comandes obertes|Pedidos abiertos/);
   assert.match(res.text, /data-countdown/);
 
   // Validaciones de carrito
@@ -125,45 +125,85 @@ test('flujo completo: primer acceso, pedido, pago y entrega con QR', async () =>
   assert.strictEqual(order.total_cents, 7250);
   assert.strictEqual(db.prepare('SELECT COUNT(*) n FROM cart_items').get().n, 0);
 
-  // Otra familia no puede ver el pedido; el admin sí
+  // La familia ve el QR de PAGO mientras está pendiente de pago
   res = await fam.get(`/pedidos/${order.id}`);
-  assert.match(res.text, /Pendiente de pago/);
-  assert.doesNotMatch(res.text, /data:image\/png/, 'sin QR hasta pagar');
+  assert.match(res.text, /Pendiente de pago|Pendent de pagament/);
+  assert.match(res.text, /data:image\/png/);
+  assert.strictEqual(order.pickup_token, null, 'sin QR de recogida hasta pagar');
 
-  // El admin no puede entregar sin pagar
-  res = await adm.get(`/admin/entrega/${order.qr_token}`);
-  assert.match(res.text, /todavía no está pagado/);
+  // Una familia no puede usar la URL del QR
+  res = await fam.get(`/admin/qr/${order.pay_token}`);
+  assert.strictEqual(res.status, 403);
 
-  // Admin marca pagado
-  const admCsrf = await csrfOf(adm, `/admin/pedidos/${order.id}`);
-  await adm.post(`/admin/pedidos/${order.id}/estado`).type('form').send({ _csrf: admCsrf, status: 'pendiente_entrega' });
-  assert.strictEqual(db.prepare('SELECT status FROM orders').get().status, 'pendiente_entrega');
+  // La comisión escanea el QR de pago: ve el botón de cobrar, no el de entregar
+  res = await adm.get(`/admin/qr/${order.pay_token}`);
+  assert.match(res.text, /\/cobrar/);
+  assert.doesNotMatch(res.text, /\/entregar/);
+  const admCsrf = await csrfOf(adm, `/admin/qr/${order.pay_token}`);
 
-  // La familia ya no puede cancelar y ve el QR
+  // Con el QR de pago no se puede entregar
+  await adm.post(`/admin/qr/${order.pay_token}/entregar`).type('form').send({ _csrf: admCsrf });
+  assert.strictEqual(db.prepare('SELECT status FROM orders').get().status, 'pendiente_pago');
+
+  // Cobro con el QR de pago -> se genera el QR de recogida
+  await adm.post(`/admin/qr/${order.pay_token}/cobrar`).type('form').send({ _csrf: admCsrf });
+  let paid = db.prepare('SELECT * FROM orders').get();
+  assert.strictEqual(paid.status, 'pendiente_entrega');
+  assert.match(paid.pickup_token, /^[0-9a-f]{64}$/);
+  assert.match(paid.pickup_code, /^[A-Z2-9]{6}$/);
+  assert.strictEqual(paid.paid_by, 1);
+
+  // Cobrar dos veces no hace nada
+  await adm.post(`/admin/qr/${order.pay_token}/cobrar`).type('form').send({ _csrf: admCsrf });
+  assert.strictEqual(db.prepare('SELECT COUNT(*) n FROM order_events WHERE status = ?').get('pendiente_entrega').n, 1);
+
+  // Al volver a escanear el QR de pago, avisa de que ya está pagado
+  res = await adm.get(`/admin/qr/${order.pay_token}`);
+  assert.doesNotMatch(res.text, /\/cobrar"/);
+
+  // La familia ya no puede cancelar y ve el QR de recogida + código
   res = await fam.post(`/pedidos/${order.id}/cancelar`).type('form').send({ _csrf });
   assert.strictEqual(db.prepare('SELECT status FROM orders').get().status, 'pendiente_entrega');
   res = await fam.get(`/pedidos/${order.id}`);
-  assert.match(res.text, /data:image\/png/);
-  assert.match(res.text, new RegExp(order.delivery_code));
+  assert.match(res.text, new RegExp(paid.pickup_code));
 
-  // Entregado sin código: rechazado; con código incorrecto: rechazado
-  await adm.post(`/admin/pedidos/${order.id}/estado`).type('form').send({ _csrf: admCsrf, status: 'entregado' });
-  await adm.post(`/admin/pedidos/${order.id}/estado`).type('form').send({ _csrf: admCsrf, status: 'entregado', code: 'AAAAAA' });
+  // Deshacer el cobro invalida el QR de recogida; al volver a cobrar se genera otro
+  let c = await csrfOf(adm, `/admin/pedidos/${order.id}`);
+  await adm.post(`/admin/pedidos/${order.id}/estado`).type('form').send({ _csrf: c, status: 'pendiente_pago' });
+  assert.strictEqual((await adm.get(`/admin/qr/${paid.pickup_token}`)).status, 404);
+  await adm.post(`/admin/pedidos/${order.id}/estado`).type('form').send({ _csrf: c, status: 'pendiente_entrega' });
+  paid = db.prepare('SELECT * FROM orders').get();
+
+  // Aviso de «listo para recoger»
+  c = await csrfOf(adm, '/admin/pedidos?estado=pendiente_entrega');
+  await adm.post('/admin/pedidos/avisar-recogida').type('form').send({ _csrf: c, message: 'Sábado en el pabellón' });
+  assert.ok(db.prepare('SELECT ready_at FROM orders').get().ready_at);
+
+  // Entregado sin código o con código incorrecto: rechazado
+  await adm.post(`/admin/pedidos/${order.id}/estado`).type('form').send({ _csrf: c, status: 'entregado' });
+  await adm.post(`/admin/pedidos/${order.id}/estado`).type('form').send({ _csrf: c, status: 'entregado', code: 'AAAAAA' });
   assert.strictEqual(db.prepare('SELECT status FROM orders').get().status, 'pendiente_entrega');
 
-  // Una familia no puede usar la URL del QR
-  res = await fam.get(`/admin/entrega/${order.qr_token}`);
-  assert.strictEqual(res.status, 403);
-
-  // Escaneo del QR por la comisión
-  res = await adm.post(`/admin/entrega/${order.qr_token}`).type('form').send({ _csrf: admCsrf });
-  assert.strictEqual(db.prepare('SELECT status FROM orders').get().status, 'entregado');
+  // Búsqueda por código de recogida -> QR de recogida -> entrega
+  res = await adm.get(`/admin/escanear?codigo=${paid.pickup_code.toLowerCase()}`);
+  assert.strictEqual(res.headers.location, `/admin/qr/${paid.pickup_token}`);
+  res = await adm.post(`/admin/qr/${paid.pickup_token}/entregar`).type('form').send({ _csrf: c });
+  const done = db.prepare('SELECT * FROM orders').get();
+  assert.strictEqual(done.status, 'entregado');
+  assert.strictEqual(done.delivered_by, 1);
 
   await wait();
-  const subjects = mails().filter((m) => m.to_address === 'fam@example.com').map((m) => m.subject).join('\n');
-  assert.match(subjects, /recibido/);
-  assert.match(subjects, /Pagado/);
-  assert.match(subjects, /Entregado/);
+  const famMails = mails().filter((m) => m.to_address === 'fam@example.com');
+  const subjects = famMails.map((m) => m.subject).join('\n');
+  assert.match(subjects, /rebuda|recibido/);
+  assert.match(subjects, /Pagada|Pagado/);
+  assert.match(subjects, /recollir|recoger/);
+  assert.match(subjects, /Lliurada|Entregado/);
+  assert.ok(famMails.some((m) => /COMPROVANT|COMPROBANTE/.test(m.body)), 'comprobante de pago');
+
+  // Panel: caja por miembro de la comisión
+  res = await adm.get('/admin');
+  assert.match(res.text, /comision/);
 
   // Resumen y CSV
   res = await adm.get('/admin/resumen');
@@ -171,8 +211,37 @@ test('flujo completo: primer acceso, pedido, pago y entrega con QR', async () =>
   assert.match(res.text, /Laia/);
   res = await adm.get('/admin/pedidos.csv');
   assert.match(res.text, /Botellero/);
-  res = await adm.get('/admin');
-  assert.strictEqual(res.status, 200);
+});
+
+test('idioma: selector, textos y correos en el idioma de la familia', async () => {
+  const { db, app, mails } = setup();
+  const agent = request.agent(app);
+  let res = await agent.get('/login').set('Accept-Language', 'es-ES,es;q=0.9');
+  assert.match(res.text, /Entrar a la botiga/);
+  assert.match(res.text, /He olvidado mi contraseña/);
+  res = await agent.get('/idioma/ca');
+  assert.strictEqual(res.status, 302);
+  res = await agent.get('/login');
+  assert.match(res.text, /He oblidat la contrasenya/);
+  assert.match(res.text, /<html lang="ca">/);
+
+  // Primer acceso en catalán -> la cuenta guarda el idioma y los correos llegan en catalán
+  const _csrf = await csrfOf(agent, '/primer-acceso');
+  await agent.post('/primer-acceso').type('form').send({ _csrf, dni: '12345678Z', step: '2', email: 'ca@example.com', email2: 'ca@example.com' });
+  assert.strictEqual(db.prepare("SELECT lang FROM users WHERE dni = '12345678Z'").get().lang, 'ca');
+  await wait();
+  assert.match(mails().find((m) => m.to_address === 'ca@example.com').subject, /El teu accés/);
+});
+
+test('ADMIN_USER crea el primer administrador una sola vez', () => {
+  const { ensureAdmin } = require('../src/db');
+  const db = openDb(':memory:');
+  assert.ok(ensureAdmin(db, { ADMIN_USER: 'Comision', ADMIN_PASSWORD: 'una-clave-larga' }));
+  assert.ok(!ensureAdmin(db, { ADMIN_USER: 'comision', ADMIN_PASSWORD: 'otra-clave-larga' }));
+  const admin = db.prepare("SELECT * FROM users WHERE role = 'admin'").get();
+  assert.strictEqual(admin.username, 'comision');
+  assert.ok(bcrypt.compareSync('una-clave-larga', admin.password_hash));
+  assert.ok(!ensureAdmin(openDb(':memory:'), { ADMIN_USER: 'x', ADMIN_PASSWORD: 'corta' }));
 });
 
 test('cancelación por la familia y recuperación de contraseña', async () => {

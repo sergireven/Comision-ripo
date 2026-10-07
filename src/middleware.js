@@ -1,5 +1,6 @@
-function flash(req, type, text) {
-  req.session.flash = { type, text };
+/** Mensaje para la siguiente página. `text` es la clave (en castellano) que se traduce al mostrarla. */
+function flash(req, type, text, params) {
+  req.session.flash = { type, text, params };
 }
 
 function requireLogin(req, res, next) {

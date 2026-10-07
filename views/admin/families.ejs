@@ -1,38 +1,38 @@
 <%- include('../partials/header') %>
-<h1>Familias</h1>
-<p class="muted">Solo pueden entrar los DNI que estén en esta lista. Cada jugador/a es una cuenta (usuario = su DNI).</p>
+<h1><%= t('Familias') %></h1>
+<p class="muted"><%= t('Solo pueden entrar los DNI que estén en esta lista. Cada jugador/a es una cuenta (usuario = su DNI).') %></p>
 
 <div class="grid two">
   <form method="post" action="/admin/familias" class="card form">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
-    <h2>Añadir jugador/a</h2>
+    <h2><%= t('Añadir jugador/a') %></h2>
     <div class="row wrap-row">
       <label class="grow">DNI <input name="dni" autocapitalize="characters" required></label>
-      <label class="grow">Nombre y apellidos <input name="player_name" required></label>
+      <label class="grow"><%= t('Nombre y apellidos') %> <input name="player_name" required></label>
     </div>
     <div class="row wrap-row">
-      <label>Dorsal <input name="player_number" inputmode="numeric" maxlength="3" class="qty"></label>
-      <label class="grow">Equipo <input name="team" placeholder="Ej.: Benjamí A"></label>
+      <label><%= t('Dorsal') %> <input name="player_number" inputmode="numeric" maxlength="3" class="qty"></label>
+      <label class="grow"><%= t('Equipo') %> <input name="team" placeholder="<%= t('Ej.: Benjamín A') %>"></label>
     </div>
-    <button class="btn primary">Añadir</button>
+    <button class="btn primary"><%= t('Añadir') %></button>
   </form>
   <form method="post" action="/admin/familias/importar" class="card form">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
-    <h2>Importar listado</h2>
-    <p class="small muted">Una línea por jugador/a: <code>DNI;Nombre;Dorsal;Equipo</code> (puedes copiar y pegar desde Excel). Si el DNI ya existe se actualizan sus datos.</p>
-    <textarea name="csv" rows="5" placeholder="12345678Z;Laia Pérez Gómez;7;Alevín A"></textarea>
-    <button class="btn">Importar</button>
+    <h2><%= t('Importar listado') %></h2>
+    <p class="small muted"><%= t('Una línea por jugador/a: DNI;Nombre;Dorsal;Equipo (puedes copiar y pegar desde Excel). Si el DNI ya existe se actualizan sus datos.') %></p>
+    <textarea name="csv" rows="5" placeholder="12345678Z;Laia Pérez Gómez;7;Aleví A"></textarea>
+    <button class="btn"><%= t('Importar') %></button>
   </form>
 </div>
 
 <form method="get" class="card row">
-  <input name="q" value="<%= q %>" class="grow" placeholder="Buscar por nombre, DNI, correo o equipo">
-  <button class="btn">Buscar</button>
+  <input name="q" value="<%= q %>" class="grow" placeholder="<%= t('Buscar por nombre, DNI, correo o equipo') %>">
+  <button class="btn"><%= t('Buscar') %></button>
 </form>
 
 <div class="card table-wrap">
   <table class="table">
-    <thead><tr><th>Jugador/a</th><th>DNI</th><th>Dorsal</th><th>Equipo</th><th>Cuenta</th><th>Pedidos</th><th class="num">Debe</th></tr></thead>
+    <thead><tr><th><%= t('Jugador/a') %></th><th>DNI</th><th><%= t('Dorsal') %></th><th><%= t('Equipo') %></th><th><%= t('Cuenta') %></th><th><%= t('Pedidos') %></th><th class="num"><%= t('Debe') %></th></tr></thead>
     <tbody>
     <% list.forEach(f => { %>
       <tr>
@@ -40,12 +40,12 @@
         <td><%= f.dni %></td>
         <td><%= f.player_number || '—' %></td>
         <td><%= f.team || '—' %></td>
-        <td><% if (f.activated_at) { %><span class="badge ok">Activa</span><br><span class="small muted"><%= f.email %></span><% } else { %><span class="badge muted">Sin activar</span><% } %></td>
+        <td><% if (f.activated_at) { %><span class="badge ok"><%= t('Activa') %></span><br><span class="small muted"><%= f.email %></span><% } else { %><span class="badge muted"><%= t('Sin activar') %></span><% } %></td>
         <td><%= f.orders %></td>
         <td class="num"><%= f.pending ? formatMoney(f.pending) : '—' %></td>
       </tr>
     <% }) %>
-    <% if (!list.length) { %><tr><td colspan="7" class="center muted">No hay resultados.</td></tr><% } %>
+    <% if (!list.length) { %><tr><td colspan="7" class="center muted"><%= t('No hay resultados.') %></td></tr><% } %>
     </tbody>
   </table>
 </div>

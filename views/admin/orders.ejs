@@ -1,31 +1,45 @@
 <%- include('../partials/header') %>
 <div class="page-head">
-  <h1>Pedidos</h1>
-  <a class="btn" href="/admin/pedidos.csv?<%= new URLSearchParams(Object.entries(q).filter(([k, v]) => typeof v === 'string')).toString() %>">Descargar Excel (CSV)</a>
+  <h1><%= t('Pedidos') %></h1>
+  <a class="btn" href="/admin/pedidos.csv?<%= new URLSearchParams(Object.entries(q).filter(([k, v]) => typeof v === 'string')).toString() %>"><%= t('Descargar Excel (CSV)') %></a>
 </div>
 <form method="get" class="card filters">
-  <label>Estado
+  <label><%= t('Estado') %>
     <select name="estado" data-autosubmit>
-      <option value="">Todos</option>
-      <% Object.entries(STATUS).forEach(([k, s]) => { %><option value="<%= k %>" <%= q.estado === k ? 'selected' : '' %>><%= s.label %></option><% }) %>
+      <option value=""><%= t('Todos') %></option>
+      <% Object.keys(STATUS).forEach(k => { %><option value="<%= k %>" <%= q.estado === k ? 'selected' : '' %>><%= statusLabel(k) %></option><% }) %>
     </select>
   </label>
-  <label>Periodo
+  <label><%= t('Periodo') %>
     <select name="periodo" data-autosubmit>
-      <option value="">Todos</option>
+      <option value=""><%= t('Todos') %></option>
       <% periods.forEach(p => { %><option value="<%= p.id %>" <%= String(q.periodo) === String(p.id) ? 'selected' : '' %>><%= p.name %></option><% }) %>
     </select>
   </label>
-  <label class="grow">Buscar
-    <input name="q" value="<%= q.q || '' %>" placeholder="Nombre, DNI, correo, nº pedido o código">
+  <label class="grow"><%= t('Buscar') %>
+    <input name="q" value="<%= q.q || '' %>" placeholder="<%= t('Nombre, DNI, correo, nº pedido o código') %>">
   </label>
-  <button class="btn">Filtrar</button>
+  <button class="btn"><%= t('Filtrar') %></button>
 </form>
 
-<p class="muted"><%= list.length %> pedido(s) · total <strong><%= formatMoney(total) %></strong></p>
+<% if (toNotify) { %>
+  <form method="post" action="/admin/pedidos/avisar-recogida" class="card highlight form"
+        data-confirm="<%= t('Se enviará un correo con el QR de recogida a {n} familia(s). ¿Continuar?', { n: toNotify }) %>">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <% if (q.periodo) { %><input type="hidden" name="periodo" value="<%= q.periodo %>"><% } %>
+    <h2>📦 <%= t('¿Ha llegado el material?') %></h2>
+    <p class="small"><%= t('{n} pedido(s) pagado(s) aún no tienen el aviso de recogida. Se enviará un correo a cada familia con su QR de recogida.', { n: toNotify }) %></p>
+    <label><%= t('Mensaje opcional (día, hora y lugar de recogida)') %>
+      <textarea name="message" rows="2" maxlength="500" placeholder="<%= t('Ej.: Sábado de 10 a 12 h en el pabellón.') %>"></textarea>
+    </label>
+    <button class="btn primary"><%= t('Avisar: listo para recoger') %></button>
+  </form>
+<% } %>
+
+<p class="muted"><%= t('{n} pedido(s)', { n: list.length }) %> · <%= t('total') %> <strong><%= formatMoney(total) %></strong></p>
 <div class="card table-wrap">
   <table class="table">
-    <thead><tr><th>Pedido</th><th>Jugador/a</th><th>Fecha</th><th>Art.</th><th class="num">Importe</th><th>Estado</th><th>Acción rápida</th></tr></thead>
+    <thead><tr><th><%= t('Pedido') %></th><th><%= t('Jugador/a') %></th><th><%= t('Fecha') %></th><th><%= t('Art.') %></th><th class="num"><%= t('Importe') %></th><th><%= t('Estado') %></th><th><%= t('Acción rápida') %></th></tr></thead>
     <tbody>
     <% list.forEach(o => { %>
       <tr>
@@ -34,22 +48,22 @@
         <td class="small"><%= formatDate(o.created_at) %></td>
         <td><%= o.units %></td>
         <td class="num"><%= formatMoney(o.total_cents) %></td>
-        <td><%- include('../partials/status', { status: o.status }) %></td>
+        <td><%- include('../partials/status', { status: o.status }) %><% if (o.status === 'pendiente_entrega' && o.ready_at) { %><br><span class="small muted"><%= t('avisado') %></span><% } %></td>
         <td>
           <% if (o.status === 'pendiente_pago') { %>
-            <form method="post" action="/admin/pedidos/<%= o.id %>/estado" data-confirm="¿Has cobrado <%= formatMoney(o.total_cents) %> de <%= o.player_name %>?">
+            <form method="post" action="/admin/pedidos/<%= o.id %>/estado" data-confirm="<%= t('¿Has cobrado {amount} de {name}?', { amount: formatMoney(o.total_cents), name: o.player_name }) %>">
               <input type="hidden" name="_csrf" value="<%= csrf %>">
               <input type="hidden" name="status" value="pendiente_entrega">
               <input type="hidden" name="back" value="list">
-              <button class="btn small primary">Marcar pagado</button>
+              <button class="btn small primary"><%= t('Marcar pagado') %></button>
             </form>
           <% } else { %>
-            <a class="btn small ghost" href="/admin/pedidos/<%= o.id %>">Ver</a>
+            <a class="btn small ghost" href="/admin/pedidos/<%= o.id %>"><%= t('Ver') %></a>
           <% } %>
         </td>
       </tr>
     <% }) %>
-    <% if (!list.length) { %><tr><td colspan="7" class="center muted">No hay pedidos con estos filtros.</td></tr><% } %>
+    <% if (!list.length) { %><tr><td colspan="7" class="center muted"><%= t('No hay pedidos con estos filtros.') %></td></tr><% } %>
     </tbody>
   </table>
 </div>

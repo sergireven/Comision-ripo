@@ -1,48 +1,48 @@
 <%- include('../partials/header') %>
-<h1>Periodos de pedidos</h1>
-<p class="muted">Las familias solo pueden añadir al carrito y confirmar pedidos dentro de un periodo abierto. Arriba de la web se muestra cuánto falta para el cierre.</p>
+<h1><%= t('Periodos de pedidos') %></h1>
+<p class="muted"><%= t('Las familias solo pueden añadir al carrito y confirmar pedidos dentro de un periodo abierto. Arriba de la web se muestra cuánto falta para el cierre.') %></p>
 
 <form method="post" action="/admin/periodos" class="card form">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
-  <h2>Nuevo periodo</h2>
+  <h2><%= t('Nuevo periodo') %></h2>
   <div class="row wrap-row">
-    <label class="grow">Nombre <input name="name" placeholder="Ej.: Pedido Navidad 2026" required></label>
-    <label>Apertura <input type="datetime-local" name="starts_at" required></label>
-    <label>Cierre <input type="datetime-local" name="ends_at" required></label>
+    <label class="grow"><%= t('Nombre') %> <input name="name" placeholder="<%= t('Ej.: Pedido Navidad 2026') %>" required></label>
+    <label><%= t('Apertura') %> <input type="datetime-local" name="starts_at" required></label>
+    <label><%= t('Cierre') %> <input type="datetime-local" name="ends_at" required></label>
   </div>
-  <button class="btn primary">Crear periodo</button>
+  <button class="btn primary"><%= t('Crear periodo') %></button>
 </form>
 
 <div class="card table-wrap">
   <table class="table">
-    <thead><tr><th>Periodo</th><th>Apertura</th><th>Cierre</th><th>Estado</th><th>Pedidos</th><th></th></tr></thead>
+    <thead><tr><th><%= t('Periodo') %> · <%= t('Apertura') %> · <%= t('Cierre') %></th><th><%= t('Estado') %></th><th><%= t('Pedidos') %></th><th></th></tr></thead>
     <tbody>
     <% list.forEach(p => { const state = p.starts_at > now ? 'Programado' : p.ends_at > now ? 'ABIERTO' : 'Cerrado'; %>
       <tr>
-        <td colspan="3">
-          <form method="post" action="/admin/periodos/<%= p.id %>" class="row tight wrap-row period-edit" id="period-<%= p.id %>">
+        <td>
+          <form method="post" action="/admin/periodos/<%= p.id %>" class="row tight wrap-row period-edit">
             <input type="hidden" name="_csrf" value="<%= csrf %>">
-            <input name="name" value="<%= p.name %>" class="grow" required aria-label="Nombre">
-            <input type="datetime-local" name="starts_at" value="<%= toLocalInput(p.starts_at) %>" required aria-label="Apertura">
-            <input type="datetime-local" name="ends_at" value="<%= toLocalInput(p.ends_at) %>" required aria-label="Cierre">
-            <button class="btn small">Guardar</button>
+            <input name="name" value="<%= p.name %>" required aria-label="<%= t('Nombre') %>">
+            <input type="datetime-local" name="starts_at" value="<%= toLocalInput(p.starts_at) %>" required aria-label="<%= t('Apertura') %>">
+            <input type="datetime-local" name="ends_at" value="<%= toLocalInput(p.ends_at) %>" required aria-label="<%= t('Cierre') %>">
+            <button class="btn small"><%= t('Guardar') %></button>
           </form>
         </td>
-        <td><span class="badge <%= state === 'ABIERTO' ? 'ok' : state === 'Programado' ? 'info' : 'muted' %>"><%= state %></span></td>
+        <td><span class="badge <%= state === 'ABIERTO' ? 'ok' : state === 'Programado' ? 'info' : 'muted' %>"><%= t(state) %></span></td>
         <td><a href="/admin/pedidos?periodo=<%= p.id %>"><%= p.orders %></a></td>
         <td><div class="row tight">
           <% if (state === 'ABIERTO') { %>
-            <form method="post" action="/admin/periodos/<%= p.id %>/cerrar" data-confirm="¿Cerrar el periodo ahora mismo?">
-              <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn small ghost">Cerrar ya</button>
+            <form method="post" action="/admin/periodos/<%= p.id %>/cerrar" data-confirm="<%= t('¿Cerrar el periodo ahora mismo?') %>">
+              <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn small ghost"><%= t('Cerrar ya') %></button>
             </form>
           <% } %>
-          <form method="post" action="/admin/periodos/<%= p.id %>/eliminar" data-confirm="¿Eliminar este periodo? Los pedidos no se borran.">
-            <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn small danger ghost">Eliminar</button>
+          <form method="post" action="/admin/periodos/<%= p.id %>/eliminar" data-confirm="<%= t('¿Eliminar este periodo? Los pedidos no se borran.') %>">
+            <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn small danger ghost"><%= t('Eliminar') %></button>
           </form>
         </div></td>
       </tr>
     <% }) %>
-    <% if (!list.length) { %><tr><td colspan="6" class="center muted">No hay periodos. Mientras no haya uno abierto no se podrán hacer pedidos.</td></tr><% } %>
+    <% if (!list.length) { %><tr><td colspan="4" class="center muted"><%= t('No hay periodos. Mientras no haya uno abierto no se podrán hacer pedidos.') %></td></tr><% } %>
     </tbody>
   </table>
 </div>

@@ -1,12 +1,12 @@
 <%- include('../partials/header') %>
 <section class="auth">
   <div class="card narrow center">
-    <h1><%= typeof reset !== 'undefined' ? 'Contraseña nueva' : '¡Cuenta activada!' %></h1>
-    <p>Esta es tu contraseña. Apúntala: la necesitarás para volver a entrar.</p>
+    <h1><%= typeof reset !== 'undefined' ? t('Contraseña nueva') : t('¡Cuenta activada!') %></h1>
+    <p><%= t('Esta es tu contraseña. Apúntala: la necesitarás para volver a entrar.') %></p>
     <div class="secret"><%= password %></div>
-    <p class="muted">Usuario: <strong><%= user.dni || user.username %></strong><br>
-      También te la hemos enviado a <strong><%= email %></strong>.<br>Puedes cambiarla cuando quieras en «Mi cuenta».</p>
-    <a class="btn primary" href="/">Entrar a la tienda</a>
+    <p class="muted"><%= t('Usuario') %>: <strong><%= user.dni || user.username %></strong><br>
+      <%= t('También te la hemos enviado a') %> <strong><%= email %></strong>.<br><%= t('Puedes cambiarla cuando quieras en «Mi cuenta».') %></p>
+    <a class="btn primary" href="/"><%= t('Entrar a la tienda') %></a>
   </div>
 </section>
 <%- include('../partials/footer') %>

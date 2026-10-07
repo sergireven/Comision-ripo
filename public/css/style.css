@@ -196,3 +196,22 @@ pre.mail { white-space: pre-wrap; font-size: .85rem; background: #f8f9fc; paddin
   .table.stack tfoot th { border: 0; }
   .table.stack tfoot th:empty { display: none; }
 }
+
+/* Selector de idioma */
+.lang-switch { display: flex; gap: 2px; margin-left: auto; }
+.lang-switch a { color: #fff; text-decoration: none; font-size: .8rem; font-weight: 700; padding: 4px 7px; border-radius: 6px; opacity: .7; }
+.lang-switch a.active { background: rgba(255,255,255,.2); opacity: 1; }
+@media (min-width: 801px) { .topbar-inner { flex-wrap: nowrap; } .lang-switch { order: 2; margin-left: 4px; } .nav { margin-left: auto; flex-wrap: nowrap; } .nav a, .nav .linklike { padding: 8px 8px; } }
+
+/* QR de pago / recogida */
+.qr-kind { display: inline-block; font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; padding: 3px 10px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); }
+.qr-kind.pickup, .pickup .qr-kind { background: var(--info-bg); color: var(--info); }
+.qr-card.pay { border-color: #f1d08a; }
+.qr-card.pickup { border-color: #a9c8ef; }
+.between { justify-content: space-between; align-items: center; }
+
+/* Escáner */
+.scanner { position: relative; border-radius: 12px; overflow: hidden; background: #000; aspect-ratio: 1 / 1; margin-bottom: 8px; }
+.scanner video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scan-frame { position: absolute; inset: 18%; border: 3px solid rgba(255,255,255,.85); border-radius: 14px; box-shadow: 0 0 0 999px rgba(0,0,0,.35); }
+hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }

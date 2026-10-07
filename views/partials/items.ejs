@@ -1,0 +1,3 @@
+<%# Detalles de una línea de pedido/carrito: talla, nombre y dorsal %>
+<% if (it.size) { %><%= t('Talla') %> <%= it.size %><br><% } %>
+<% if (it.custom_name) { %>«<%= it.custom_name %>» · <%= t('dorsal') %> <%= it.custom_number %><% } %>

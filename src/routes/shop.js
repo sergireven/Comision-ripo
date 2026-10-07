@@ -2,6 +2,7 @@ const express = require('express');
 const QRCode = require('qrcode');
 const { flash, requireFamily } = require('../middleware');
 const { shopStatus } = require('../services');
+const { localized } = require('../i18n');
 
 module.exports = function shopRoutes({ db, mailer, orders }) {
   const router = express.Router();
@@ -31,7 +32,7 @@ module.exports = function shopRoutes({ db, mailer, orders }) {
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(Number(req.body.product_id));
     const result = orders.addToCart(req.user.id, product, req.body);
     if (result.error) flash(req, 'error', result.error);
-    else flash(req, 'ok', `Añadido al carrito: ${product.name}.`);
+    else flash(req, 'ok', 'Añadido al carrito: {name}.', { name: localized(req.lang, product, 'name') });
     res.redirect(back);
   });
 
@@ -62,11 +63,11 @@ module.exports = function shopRoutes({ db, mailer, orders }) {
     }
     const result = orders.placeOrder(req.user.id, status.current.id);
     if (result.error) {
-      flash(req, 'error', result.error);
+      flash(req, 'error', result.error, result.params);
       return res.redirect('/carrito');
     }
     mailer.orderPlaced(req.user, result.order, orders.orderItems(result.order.id), req.appUrl);
-    flash(req, 'ok', 'Pedido realizado. Te hemos enviado un correo de confirmación. Recuerda que está pendiente de pago.');
+    flash(req, 'ok', 'Pedido realizado. Te hemos enviado un correo con el QR de pago. Enséñalo a la comisión cuando pagues.');
     res.redirect(`/pedidos/${result.order.id}`);
   });
 
@@ -90,9 +91,9 @@ module.exports = function shopRoutes({ db, mailer, orders }) {
     try {
       const order = ownOrder(req, res);
       if (!order) return;
-      const qr = order.status === 'pendiente_entrega'
-        ? await QRCode.toDataURL(`${req.appUrl}/admin/entrega/${order.qr_token}`, { margin: 1, width: 280 })
-        : null;
+      // pendiente de pago -> QR de pago · pagado -> QR de recogida
+      const token = { pendiente_pago: order.pay_token, pendiente_entrega: order.pickup_token }[order.status];
+      const qr = token ? await QRCode.toDataURL(`${req.appUrl}/admin/qr/${token}`, { margin: 1, width: 280 }) : null;
       res.render('shop/order', {
         title: 'Pedido', order, items: orders.orderItems(order.id), events: orders.orderEvents(order.id), qr,
       });

@@ -69,8 +69,8 @@ module.exports = function authRoutes({ db, mailer }) {
     if (email !== email2) return render(400, { step: 2, playerName: user.player_name, email, error: 'Los dos correos no coinciden.' });
 
     const password = generatePassword();
-    const res2 = db.prepare(`UPDATE users SET email = ?, password_hash = ?, activated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-      WHERE id = ? AND activated_at IS NULL`).run(email, bcrypt.hashSync(password, 10), user.id);
+    const res2 = db.prepare(`UPDATE users SET email = ?, password_hash = ?, lang = ?, activated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      WHERE id = ? AND activated_at IS NULL`).run(email, bcrypt.hashSync(password, 10), req.lang, user.id);
     if (!res2.changes) return render(409, { step: 1, error: 'Esta cuenta ya está activada.' });
 
     const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
@@ -154,7 +154,7 @@ module.exports = function authRoutes({ db, mailer }) {
       flash(req, 'error', 'Introduce un correo válido.');
     } else {
       db.prepare('UPDATE users SET email = ? WHERE id = ?').run(email, req.user.id);
-      mailer.send(email, 'Correo de contacto actualizado', 'Este es ahora el correo de contacto de tu cuenta de la tienda del club.');
+      mailer.emailChanged(req.user, email);
       flash(req, 'ok', 'Correo actualizado.');
     }
     res.redirect('/cuenta');

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="es">
+<html lang="<%= lang %>">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><%= typeof title !== 'undefined' ? title + ' · ' : '' %><%= clubName %> · Botiga</title>
+  <title><%= typeof title !== 'undefined' ? t(title) + ' · ' : '' %><%= clubName %> · <%= t('Botiga') %></title>
   <link rel="stylesheet" href="/static/css/style.css">
   <link rel="icon" href="/static/img/logo.svg">
 </head>
@@ -12,27 +12,31 @@
   <div class="wrap topbar-inner">
     <a class="brand" href="/">
       <img src="/static/img/logo.svg" alt="" width="36" height="36">
-      <span><strong><%= clubName %></strong><small>Botiga del club</small></span>
+      <span><strong><%= clubName %></strong><small><%= t('Botiga del club') %></small></span>
     </a>
+    <div class="lang-switch" aria-label="<%= t('Idioma') %>">
+      <a href="/idioma/ca" class="<%= lang === 'ca' ? 'active' : '' %>" hreflang="ca" lang="ca">CA</a>
+      <a href="/idioma/es" class="<%= lang === 'es' ? 'active' : '' %>" hreflang="es" lang="es">ES</a>
+    </div>
     <% if (user) { %>
-    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Menú">
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="<%= t('Menú') %>">
     <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span></label>
     <nav class="nav">
       <% if (user.role === 'family') { %>
-        <a href="/tienda" class="<%= path.startsWith('/tienda') ? 'active' : '' %>">Tienda</a>
-        <a href="/carrito" class="<%= path.startsWith('/carrito') ? 'active' : '' %>">Carrito<% if (cartCount) { %> <span class="pill"><%= cartCount %></span><% } %></a>
-        <a href="/pedidos" class="<%= path.startsWith('/pedidos') ? 'active' : '' %>">Mis pedidos</a>
+        <a href="/tienda" class="<%= path.startsWith('/tienda') ? 'active' : '' %>"><%= t('Tienda') %></a>
+        <a href="/carrito" class="<%= path.startsWith('/carrito') ? 'active' : '' %>"><%= t('Carrito') %><% if (cartCount) { %> <span class="pill"><%= cartCount %></span><% } %></a>
+        <a href="/pedidos" class="<%= path.startsWith('/pedidos') ? 'active' : '' %>"><%= t('Mis pedidos') %></a>
       <% } else { %>
-        <a href="/admin" class="<%= path === '/admin' || path === '/admin/' ? 'active' : '' %>">Panel</a>
-        <a href="/admin/pedidos" class="<%= path.startsWith('/admin/pedidos') ? 'active' : '' %>">Pedidos</a>
-        <a href="/admin/entrega" class="<%= path.startsWith('/admin/entrega') ? 'active' : '' %>">Entregar</a>
-        <a href="/admin/resumen" class="<%= path.startsWith('/admin/resumen') ? 'active' : '' %>">Resumen</a>
-        <a href="/admin/productos" class="<%= path.startsWith('/admin/productos') || path.startsWith('/admin/categorias') ? 'active' : '' %>">Productos</a>
-        <a href="/admin/periodos" class="<%= path.startsWith('/admin/periodos') ? 'active' : '' %>">Periodos</a>
-        <a href="/admin/familias" class="<%= path.startsWith('/admin/familias') ? 'active' : '' %>">Familias</a>
+        <a href="/admin" class="<%= path === '/admin' || path === '/admin/' ? 'active' : '' %>"><%= t('Panel') %></a>
+        <a href="/admin/escanear" class="<%= path.startsWith('/admin/escanear') || path.startsWith('/admin/qr') ? 'active' : '' %>"><%= t('Escanear') %></a>
+        <a href="/admin/pedidos" class="<%= path.startsWith('/admin/pedidos') ? 'active' : '' %>"><%= t('Pedidos') %></a>
+        <a href="/admin/resumen" class="<%= path.startsWith('/admin/resumen') ? 'active' : '' %>"><%= t('Resumen') %></a>
+        <a href="/admin/productos" class="<%= path.startsWith('/admin/productos') || path.startsWith('/admin/categorias') ? 'active' : '' %>"><%= t('Productos') %></a>
+        <a href="/admin/periodos" class="<%= path.startsWith('/admin/periodos') ? 'active' : '' %>"><%= t('Periodos') %></a>
+        <a href="/admin/familias" class="<%= path.startsWith('/admin/familias') ? 'active' : '' %>"><%= t('Familias') %></a>
       <% } %>
-      <a href="/cuenta" class="<%= path.startsWith('/cuenta') ? 'active' : '' %>">Mi cuenta</a>
-      <form method="post" action="/logout" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike">Salir</button></form>
+      <a href="/cuenta" class="<%= path.startsWith('/cuenta') ? 'active' : '' %>"><%= t('Mi cuenta') %></a>
+      <form method="post" action="/logout" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike"><%= t('Salir') %></button></form>
     </nav>
     <% } %>
   </div>
@@ -41,15 +45,16 @@
 <% if (user) { %>
 <div class="shopbar <%= shop.open ? 'open' : 'closed' %>">
   <div class="wrap">
+    <span class="dot"></span>
     <% if (shop.open) { %>
-      <span class="dot"></span> Pedidos abiertos<% if (shop.current.name) { %> · <strong><%= shop.current.name %></strong><% } %>.
-      Cierra el <%= formatDate(shop.current.ends_at) %> —
-      quedan <strong data-countdown="<%= shop.current.ends_at %>">…</strong>
+      <%= t('Pedidos abiertos') %><% if (shop.current.name) { %> · <strong><%= shop.current.name %></strong><% } %>.
+      <%= t('Cierra el {date}', { date: formatDate(shop.current.ends_at) }) %> —
+      <%= t('quedan') %> <strong data-countdown="<%= shop.current.ends_at %>" data-lang="<%= lang %>">…</strong>
     <% } else if (shop.next) { %>
-      <span class="dot"></span> Pedidos cerrados. Próxima apertura (<%= shop.next.name %>): <strong><%= formatDate(shop.next.starts_at) %></strong>
-      — en <strong data-countdown="<%= shop.next.starts_at %>">…</strong>
+      <%= t('Pedidos cerrados. Próxima apertura ({name}):', { name: shop.next.name }) %> <strong><%= formatDate(shop.next.starts_at) %></strong>
+      — <%= t('en') %> <strong data-countdown="<%= shop.next.starts_at %>" data-lang="<%= lang %>">…</strong>
     <% } else { %>
-      <span class="dot"></span> Pedidos cerrados. La comisión avisará cuando se abra el próximo periodo.
+      <%= t('Pedidos cerrados. La comisión avisará cuando se abra el próximo periodo.') %>
     <% } %>
   </div>
 </div>
@@ -57,5 +62,5 @@
 
 <main class="wrap">
 <% if (flash) { %>
-  <div class="flash <%= flash.type %>" role="status"><%= flash.text %></div>
+  <div class="flash <%= flash.type %>" role="status"><%= t(flash.text, flash.params) %></div>
 <% } %>

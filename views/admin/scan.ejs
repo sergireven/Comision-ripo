@@ -1,0 +1,27 @@
+<%- include('../partials/header') %>
+<section class="card narrow">
+  <h1><%= t('Escanear QR') %></h1>
+  <p class="small muted"><%= t('Sirve para los dos QR de la familia: el de pago (para registrar el cobro) y el de recogida (para entregar).') %></p>
+  <div class="scanner" id="scanner" hidden>
+    <video id="scan-video" playsinline muted></video>
+    <div class="scan-frame"></div>
+  </div>
+  <p id="scan-msg" class="small center"></p>
+  <button type="button" class="btn primary block big" id="scan-start"
+    data-msg-https="<%= t('La cámara solo funciona con HTTPS. Usa la cámara del móvil para leer el QR o escribe el código.') %>"
+    data-msg-denied="<%= t('No se ha podido abrir la cámara. Revisa los permisos del navegador.') %>"
+    data-msg-scanning="<%= t('Apunta al QR…') %>"
+    data-msg-foreign="<%= t('Este QR no es de la tienda del club.') %>">📷 <%= t('Abrir cámara') %></button>
+
+  <hr>
+  <p><strong><%= t('¿Sin QR?') %></strong> <%= t('Escribe el código de recogida de 6 caracteres:') %></p>
+  <% if (typeof error !== 'undefined') { %><div class="flash error"><%= t(error) %></div><% } %>
+  <form method="get" action="/admin/escanear" class="row">
+    <input name="codigo" class="grow code-input" autocapitalize="characters" maxlength="6" required placeholder="K7QM3X">
+    <button class="btn"><%= t('Buscar') %></button>
+  </form>
+  <p class="hint"><%= t('Para cobrar sin QR, busca el pedido por nombre en «Pedidos».') %></p>
+</section>
+<script src="/static/vendor/jsQR.js"></script>
+<script src="/static/js/scanner.js"></script>
+<%- include('../partials/footer') %>

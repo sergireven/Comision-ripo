@@ -1,53 +1,50 @@
 <%- include('../partials/header') %>
-<h1>Carrito</h1>
+<h1><%= t('Carrito') %></h1>
 <% if (!cart.items.length) { %>
   <div class="card center">
-    <p>Tu carrito está vacío.</p>
-    <a class="btn primary" href="/tienda">Ir a la tienda</a>
+    <p><%= t('Tu carrito está vacío.') %></p>
+    <a class="btn primary" href="/tienda"><%= t('Ir a la tienda') %></a>
   </div>
 <% } else { %>
   <div class="card table-wrap">
     <table class="table stack">
-      <thead><tr><th>Producto</th><th>Detalles</th><th>Precio</th><th>Cantidad</th><th class="num">Importe</th><th></th></tr></thead>
+      <thead><tr><th><%= t('Producto') %></th><th><%= t('Detalles') %></th><th><%= t('Precio') %></th><th><%= t('Cantidad') %></th><th class="num"><%= t('Importe') %></th><th></th></tr></thead>
       <tbody>
       <% cart.items.forEach(it => { %>
         <tr class="<%= it.active ? '' : 'unavailable' %>">
-          <td><strong><%= it.product_name %></strong><% if (!it.active) { %><br><span class="badge muted">No disponible</span><% } %></td>
-          <td class="small" data-label="Detalles">
-            <% if (it.size) { %>Talla <%= it.size %><br><% } %>
-            <% if (it.custom_name) { %>«<%= it.custom_name %>» · dorsal <%= it.custom_number %><% } %>
-          </td>
-          <td data-label="Precio"><%= formatMoney(it.price_cents) %></td>
-          <td data-label="Cantidad">
+          <td><strong><%= loc(it, 'product_name') %></strong><% if (!it.active) { %><br><span class="badge muted"><%= t('No disponible') %></span><% } %></td>
+          <td class="small" data-label="<%= t('Detalles') %>"><%- include('../partials/items', { it }) %></td>
+          <td data-label="<%= t('Precio') %>"><%= formatMoney(it.price_cents) %></td>
+          <td data-label="<%= t('Cantidad') %>">
             <form method="post" action="/carrito/<%= it.id %>/cantidad" class="row tight">
               <input type="hidden" name="_csrf" value="<%= csrf %>">
-              <input type="number" name="quantity" value="<%= it.quantity %>" min="1" max="50" class="qty" aria-label="Cantidad">
+              <input type="number" name="quantity" value="<%= it.quantity %>" min="1" max="50" class="qty" aria-label="<%= t('Cantidad') %>">
               <button class="btn small">OK</button>
             </form>
           </td>
-          <td class="num" data-label="Importe"><%= formatMoney(it.price_cents * it.quantity) %></td>
+          <td class="num" data-label="<%= t('Importe') %>"><%= formatMoney(it.price_cents * it.quantity) %></td>
           <td>
             <form method="post" action="/carrito/<%= it.id %>/eliminar">
               <input type="hidden" name="_csrf" value="<%= csrf %>">
-              <button class="btn small danger ghost" aria-label="Quitar">Quitar</button>
+              <button class="btn small danger ghost"><%= t('Quitar') %></button>
             </form>
           </td>
         </tr>
       <% }) %>
       </tbody>
-      <tfoot><tr><th colspan="4">Total</th><th class="num"><%= formatMoney(cart.total) %></th><th></th></tr></tfoot>
+      <tfoot><tr><th colspan="4"><%= t('Total') %></th><th class="num"><%= formatMoney(cart.total) %></th><th></th></tr></tfoot>
     </table>
   </div>
 
   <div class="card checkout">
     <div>
-      <p><strong>Revisa que todo sea correcto</strong> (tallas, nombre y dorsal) antes de confirmar.</p>
-      <p class="muted small">El pago se hace en mano a la comisión. Hasta que no esté pagado podrás cancelar el pedido.</p>
+      <p><strong><%= t('Revisa que todo sea correcto (tallas, nombre y dorsal) antes de confirmar.') %></strong></p>
+      <p class="muted small"><%= t('El pago se hace en mano a la comisión. Hasta que no esté pagado podrás cancelar el pedido.') %></p>
     </div>
-    <form method="post" action="/carrito/confirmar" data-confirm="¿Confirmas el pedido por <%= formatMoney(cart.total) %>?">
+    <form method="post" action="/carrito/confirmar" data-confirm="<%= t('¿Confirmas el pedido por {amount}?', { amount: formatMoney(cart.total) }) %>">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
-      <button class="btn primary big" <%= shop.open ? '' : 'disabled' %>>Realizar pedido · <%= formatMoney(cart.total) %></button>
-      <% if (!shop.open) { %><p class="small error-text">El periodo de pedidos está cerrado.</p><% } %>
+      <button class="btn primary big" <%= shop.open ? '' : 'disabled' %>><%= t('Realizar pedido') %> · <%= formatMoney(cart.total) %></button>
+      <% if (!shop.open) { %><p class="small error-text"><%= t('El periodo de pedidos está cerrado.') %></p><% } %>
     </form>
   </div>
 <% } %>

@@ -1,38 +1,38 @@
 <%- include('../partials/header') %>
-<h1>Resumen de pedidos</h1>
-<p class="muted">Unidades por producto y talla, para hacer el encargo al proveedor. No incluye pedidos cancelados.</p>
+<h1><%= t('Resumen de pedidos') %></h1>
+<p class="muted"><%= t('Unidades por producto y talla, para hacer el encargo al proveedor. No incluye pedidos cancelados.') %></p>
 <form method="get" class="card filters">
   <% [['pendiente_pago', 'Pendientes de pago'], ['pendiente_entrega', 'Pagados'], ['entregado', 'Entregados']].forEach(([k, l]) => { %>
-    <label class="check"><input type="checkbox" name="estado" value="<%= k %>" <%= chosen.includes(k) ? 'checked' : '' %>> <%= l %></label>
+    <label class="check"><input type="checkbox" name="estado" value="<%= k %>" <%= chosen.includes(k) ? 'checked' : '' %>> <%= t(l) %></label>
   <% }) %>
-  <label>Periodo
+  <label><%= t('Periodo') %>
     <select name="periodo">
-      <option value="">Todos</option>
+      <option value=""><%= t('Todos') %></option>
       <% periods.forEach(p => { %><option value="<%= p.id %>" <%= String(periodo) === String(p.id) ? 'selected' : '' %>><%= p.name %></option><% }) %>
     </select>
   </label>
-  <button class="btn">Aplicar</button>
-  <button type="button" class="btn ghost" onclick="window.print()">Imprimir</button>
+  <button class="btn"><%= t('Aplicar') %></button>
+  <button type="button" class="btn ghost" data-print><%= t('Imprimir') %></button>
 </form>
 
 <div class="card table-wrap">
   <table class="table">
-    <thead><tr><th>Producto</th><th>Talla</th><th class="num">Unidades</th><th class="num">Importe</th></tr></thead>
+    <thead><tr><th><%= t('Producto') %></th><th><%= t('Talla') %></th><th class="num"><%= t('Unidades') %></th><th class="num"><%= t('Importe') %></th></tr></thead>
     <tbody>
-      <% lines.forEach(l => { %><tr><td><%= l.product_name %></td><td><%= l.size || '—' %></td><td class="num"><strong><%= l.qty %></strong></td><td class="num"><%= formatMoney(l.amount) %></td></tr><% }) %>
-      <% if (!lines.length) { %><tr><td colspan="4" class="center muted">Sin datos.</td></tr><% } %>
+      <% lines.forEach(l => { %><tr><td><%= loc(l, 'product_name') %></td><td><%= l.size || '—' %></td><td class="num"><strong><%= l.qty %></strong></td><td class="num"><%= formatMoney(l.amount) %></td></tr><% }) %>
+      <% if (!lines.length) { %><tr><td colspan="4" class="center muted"><%= t('Sin datos.') %></td></tr><% } %>
     </tbody>
-    <tfoot><tr><th colspan="2">Total</th><th class="num"><%= lines.reduce((s, l) => s + l.qty, 0) %></th><th class="num"><%= formatMoney(lines.reduce((s, l) => s + l.amount, 0)) %></th></tr></tfoot>
+    <tfoot><tr><th colspan="2"><%= t('Total') %></th><th class="num"><%= lines.reduce((s, l) => s + l.qty, 0) %></th><th class="num"><%= formatMoney(lines.reduce((s, l) => s + l.amount, 0)) %></th></tr></tfoot>
   </table>
 </div>
 
 <% if (custom.length) { %>
-<h2>Personalizaciones (nombre + dorsal)</h2>
+<h2><%= t('Personalizaciones (nombre + dorsal)') %></h2>
 <div class="card table-wrap">
   <table class="table">
-    <thead><tr><th>Producto</th><th>Talla</th><th>Nombre</th><th>Dorsal</th><th>Cant.</th><th>Pedido</th><th>Jugador/a</th></tr></thead>
+    <thead><tr><th><%= t('Producto') %></th><th><%= t('Talla') %></th><th><%= t('Nombre') %></th><th><%= t('Dorsal') %></th><th><%= t('Cant.') %></th><th><%= t('Pedido') %></th><th><%= t('Jugador/a') %></th></tr></thead>
     <tbody>
-      <% custom.forEach(c => { %><tr><td><%= c.product_name %></td><td><%= c.size || '—' %></td><td><strong><%= c.custom_name %></strong></td><td><strong><%= c.custom_number %></strong></td><td><%= c.quantity %></td>
+      <% custom.forEach(c => { %><tr><td><%= loc(c, 'product_name') %></td><td><%= c.size || '—' %></td><td><strong><%= c.custom_name %></strong></td><td><strong><%= c.custom_number %></strong></td><td><%= c.quantity %></td>
         <td><a href="/admin/pedidos/<%= c.order_id %>"><%= orderCode(c.order_id) %></a></td><td><%= c.player_name %></td></tr><% }) %>
     </tbody>
   </table>

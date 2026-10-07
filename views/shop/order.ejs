@@ -1,54 +1,61 @@
 <%- include('../partials/header') %>
-<p><a href="/pedidos">← Mis pedidos</a></p>
+<p><a href="/pedidos">← <%= t('Mis pedidos') %></a></p>
 <div class="page-head">
-  <h1>Pedido <%= orderCode(order.id) %></h1>
+  <h1><%= t('Pedido {code}', { code: orderCode(order.id) }) %></h1>
   <%- include('../partials/status', { status: order.status }) %>
 </div>
 
 <% if (order.status === 'pendiente_pago') { %>
-  <div class="card highlight">
-    <p>Importe a pagar en mano a la comisión: <strong class="big-amount"><%= formatMoney(order.total_cents) %></strong></p>
-    <p class="muted small">Cuando la comisión registre el pago lo verás aquí y te llegará un correo.</p>
-    <form method="post" action="/pedidos/<%= order.id %>/cancelar" data-confirm="¿Seguro que quieres cancelar este pedido?">
-      <input type="hidden" name="_csrf" value="<%= csrf %>">
-      <button class="btn danger ghost">Cancelar pedido</button>
-    </form>
+  <div class="card qr-card center pay">
+    <span class="qr-kind"><%= t('QR de pago') %></span>
+    <p><%= t('Importe a pagar en mano a la comisión') %>: <strong class="big-amount"><%= formatMoney(order.total_cents) %></strong></p>
+    <img src="<%= qr %>" alt="<%= t('QR de pago') %>" width="240" height="240">
+    <p class="small"><%= t('Cuando pagues, enseña este QR: la comisión lo escaneará y recibirás al momento el comprobante y el QR de recogida.') %></p>
   </div>
+  <form method="post" action="/pedidos/<%= order.id %>/cancelar" data-confirm="<%= t('¿Seguro que quieres cancelar este pedido?') %>" class="center">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <button class="btn danger ghost"><%= t('Cancelar pedido') %></button>
+  </form>
 <% } else if (order.status === 'pendiente_entrega') { %>
-  <div class="card qr-card center">
-    <h2>Pagado ✔ · Para recoger</h2>
-    <p>Enseña este QR a la comisión cuando recojas el pedido. Al escanearlo quedará marcado como entregado.</p>
-    <img src="<%= qr %>" alt="Código QR de entrega" width="280" height="280">
-    <p>Código de entrega: <span class="code"><%= order.delivery_code %></span></p>
-    <p class="muted small">No compartas este código: solo sirve para recoger este pedido.</p>
+  <div class="card qr-card center pickup">
+    <span class="qr-kind"><%= t('QR de recogida') %></span>
+    <% if (order.ready_at) { %>
+      <div class="flash ok"><strong><%= t('¡Listo para recoger!') %></strong> <%= t('Enseña este QR a la comisión cuando vengas a buscarlo.') %></div>
+    <% } else { %>
+      <p><strong><%= t('Pagado ✔') %></strong> <%= t('Te avisaremos por correo cuando el material haya llegado.') %></p>
+    <% } %>
+    <img src="<%= qr %>" alt="<%= t('QR de recogida') %>" width="280" height="280">
+    <p><%= t('Código de recogida') %>: <span class="code"><%= order.pickup_code %></span></p>
+    <p class="muted small"><%= t('No lo compartas: quien tenga este QR puede recoger el pedido.') %></p>
   </div>
 <% } else if (order.status === 'entregado') { %>
-  <div class="card ok-card">Entregado el <%= formatDate(order.delivered_at) %>. ¡Gracias!</div>
+  <div class="card ok-card"><%= t('Entregado el {date}. ¡Gracias!', { date: formatDate(order.delivered_at) }) %></div>
 <% } %>
 
 <div class="card table-wrap">
   <table class="table stack">
-    <thead><tr><th>Producto</th><th>Detalles</th><th>Cant.</th><th class="num">Importe</th></tr></thead>
+    <thead><tr><th><%= t('Producto') %></th><th><%= t('Detalles') %></th><th><%= t('Cant.') %></th><th class="num"><%= t('Importe') %></th></tr></thead>
     <tbody>
     <% items.forEach(it => { %>
       <tr>
-        <td><%= it.product_name %><br><span class="muted small"><%= formatMoney(it.unit_price_cents) %>/u.</span></td>
-        <td class="small" data-label="Detalles"><% if (it.size) { %>Talla <%= it.size %><br><% } %><% if (it.custom_name) { %>«<%= it.custom_name %>» · dorsal <%= it.custom_number %><% } %></td>
-        <td data-label="Cantidad"><%= it.quantity %></td>
-        <td class="num" data-label="Importe"><%= formatMoney(it.unit_price_cents * it.quantity) %></td>
+        <td><%= loc(it, 'product_name') %><br><span class="muted small"><%= formatMoney(it.unit_price_cents) %>/<%= t('u.') %></span></td>
+        <td class="small" data-label="<%= t('Detalles') %>"><%- include('../partials/items', { it }) %></td>
+        <td data-label="<%= t('Cantidad') %>"><%= it.quantity %></td>
+        <td class="num" data-label="<%= t('Importe') %>"><%= formatMoney(it.unit_price_cents * it.quantity) %></td>
       </tr>
     <% }) %>
     </tbody>
-    <tfoot><tr><th colspan="3">Total</th><th class="num"><%= formatMoney(order.total_cents) %></th></tr></tfoot>
+    <tfoot><tr><th colspan="3"><%= t('Total') %></th><th class="num"><%= formatMoney(order.total_cents) %></th></tr></tfoot>
   </table>
 </div>
 
 <div class="card">
-  <h2>Historial</h2>
+  <h2><%= t('Historial') %></h2>
   <ul class="timeline">
     <% events.forEach(e => { %>
       <li><span class="muted small"><%= formatDate(e.created_at) %></span> <%- include('../partials/status', { status: e.status }) %></li>
     <% }) %>
+    <% if (order.ready_at && order.status !== 'cancelado') { %><li><span class="muted small"><%= formatDate(order.ready_at) %></span> <span class="badge ok"><%= t('Aviso: listo para recoger') %></span></li><% } %>
   </ul>
 </div>
 <%- include('../partials/footer') %>

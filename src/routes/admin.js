@@ -28,6 +28,8 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
   });
 
   const userOf = (order) => db.prepare('SELECT * FROM users WHERE id = ?').get(order.user_id);
+  const collectorName = (user) => user.player_name && user.player_name !== user.username
+    ? `${user.player_name} (${user.username})` : user.username;
 
   function applyStatus(req, order, status, note) {
     const result = orders.changeStatus(order.id, status, req.user.id, note);
@@ -35,8 +37,8 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       flash(req, 'error', result.error);
       return false;
     }
-    mailer.statusChanged(userOf(order), result.order, req.appUrl);
-    flash(req, 'ok', `Pedido ${orderCode(order.id)}: ${STATUS[status].label}.`);
+    mailer.statusChanged(userOf(order), result.order, req.appUrl, collectorName(req.user));
+    flash(req, 'ok', 'Pedido {code}: {status}.', { code: orderCode(order.id), status: req.t(STATUS[status].label) });
     return true;
   }
 
@@ -49,7 +51,13 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       FROM users WHERE role = 'family'`).get();
     const recent = db.prepare(`SELECT o.*, u.player_name, u.dni FROM orders o JOIN users u ON u.id = o.user_id
       ORDER BY o.id DESC LIMIT 8`).all();
-    res.render('admin/dashboard', { title: 'Panel de la comisión', stats, families, recent });
+    // Dinero cobrado por cada miembro de la comisión: sirve para cuadrar la caja.
+    const cash = db.prepare(`SELECT u.username, u.player_name, COUNT(*) AS n, SUM(o.total_cents) AS total
+      FROM orders o LEFT JOIN users u ON u.id = o.paid_by
+      WHERE o.status IN ('pendiente_entrega', 'entregado') GROUP BY o.paid_by ORDER BY total DESC`).all();
+    const awaitingNotice = db.prepare(`SELECT COUNT(*) AS n FROM orders
+      WHERE status = 'pendiente_entrega' AND ready_at IS NULL`).get().n;
+    res.render('admin/dashboard', { title: 'Panel de la comisión', stats, families, recent, cash, awaitingNotice });
   });
 
   // ---------- Pedidos ----------
@@ -60,7 +68,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     if (query.periodo) { where.push('o.period_id = ?'); params.push(Number(query.periodo)); }
     if (query.q) {
       const q = `%${String(query.q).trim()}%`;
-      where.push('(u.player_name LIKE ? OR u.dni LIKE ? OR u.email LIKE ? OR o.delivery_code LIKE ? OR CAST(o.id AS TEXT) = ?)');
+      where.push('(u.player_name LIKE ? OR u.dni LIKE ? OR u.email LIKE ? OR o.pickup_code LIKE ? OR CAST(o.id AS TEXT) = ?)');
       params.push(q, q, q, q, String(query.q).replace(/^#?0*/, ''));
     }
     return { sql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
@@ -73,33 +81,57 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       FROM orders o JOIN users u ON u.id = o.user_id ${sql} ORDER BY o.id DESC`).all(...params);
     const total = list.reduce((s, o) => s + o.total_cents, 0);
     const periods = db.prepare('SELECT * FROM periods ORDER BY starts_at DESC').all();
-    res.render('admin/orders', { title: 'Pedidos', list, total, periods, q: req.query });
+    const toNotify = list.filter((o) => o.status === 'pendiente_entrega' && !o.ready_at).length;
+    res.render('admin/orders', { title: 'Pedidos', list, total, periods, q: req.query, toNotify });
   });
 
   router.get('/pedidos.csv', (req, res) => {
     const { sql, params } = orderFilters(req.query);
     const rows = db.prepare(`SELECT o.id, o.status, o.created_at, o.paid_at, o.delivered_at, u.player_name, u.dni,
-        u.email, i.product_name, i.size, i.custom_name, i.custom_number, i.quantity, i.unit_price_cents
+        u.email, i.product_name, i.size, i.custom_name, i.custom_number, i.quantity, i.unit_price_cents,
+        c.username AS collector
       FROM orders o JOIN users u ON u.id = o.user_id JOIN order_items i ON i.order_id = o.id
+      LEFT JOIN users c ON c.id = o.paid_by
       ${sql} ORDER BY o.id, i.id`).all(...params);
+    const t = req.t;
+    const fd = (iso) => formatDate(iso, true, req.lang);
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const header = ['Pedido', 'Estado', 'Fecha', 'Pagado', 'Entregado', 'Jugador/a', 'DNI', 'Email', 'Producto', 'Talla',
-      'Nombre', 'Dorsal', 'Cantidad', 'Precio unidad', 'Importe'];
-    const lines = rows.map((r) => [orderCode(r.id), STATUS[r.status].label, formatDate(r.created_at), formatDate(r.paid_at),
-      formatDate(r.delivered_at), r.player_name, r.dni, r.email, r.product_name, r.size, r.custom_name, r.custom_number,
+    const header = ['Pedido', 'Estado', 'Fecha', 'Pagado', 'Cobrado por', 'Entregado', 'Jugador/a', 'DNI', 'Correo', 'Producto', 'Talla',
+      'Nombre', 'Dorsal', 'Cantidad', 'Precio unidad', 'Importe'].map((h) => t(h));
+    const lines = rows.map((r) => [orderCode(r.id), t(STATUS[r.status].label), fd(r.created_at), fd(r.paid_at), r.collector,
+      fd(r.delivered_at), r.player_name, r.dni, r.email, r.product_name, r.size, r.custom_name, r.custom_number,
       r.quantity, (r.unit_price_cents / 100).toFixed(2).replace('.', ','),
       ((r.unit_price_cents * r.quantity) / 100).toFixed(2).replace('.', ',')].map(esc).join(';'));
     res.set('Content-Type', 'text/csv; charset=utf-8');
-    res.set('Content-Disposition', 'attachment; filename="pedidos.csv"');
-    res.send(`﻿${[header.map(esc).join(';'), ...lines].join('\r\n')}`);
+    res.set('Content-Disposition', `attachment; filename="${req.lang === 'ca' ? 'comandes' : 'pedidos'}.csv"`);
+    res.send(`\uFEFF${[header.map(esc).join(';'), ...lines].join('\r\n')}`);
+  });
+
+  // Aviso masivo «ya podéis recoger» a los pedidos pagados que aún no se han avisado.
+  router.post('/pedidos/avisar-recogida', (req, res) => {
+    const periodSql = req.body.periodo ? 'AND period_id = ?' : '';
+    const pending = db.prepare(`SELECT * FROM orders WHERE status = 'pendiente_entrega' AND ready_at IS NULL ${periodSql}`)
+      .all(...(req.body.periodo ? [Number(req.body.periodo)] : []));
+    const message = String(req.body.message || '').trim().slice(0, 500);
+    const mark = db.prepare('UPDATE orders SET ready_at = ? WHERE id = ?');
+    const now = new Date().toISOString();
+    for (const order of pending) {
+      mark.run(now, order.id);
+      mailer.readyForPickup(userOf(order), order, req.appUrl, message);
+    }
+    flash(req, 'ok', 'Aviso de recogida enviado a {n} familia(s).', { n: pending.length });
+    res.redirect('/admin/pedidos?estado=pendiente_entrega');
   });
 
   router.get('/pedidos/:id', (req, res) => {
     const order = orders.getOrder(Number(req.params.id));
     if (!order) return res.status(404).render('error', { title: 'No encontrado', message: 'Ese pedido no existe.' });
+    const people = db.prepare('SELECT id, username FROM users WHERE id IN (?, ?)').all(order.paid_by, order.delivered_by);
+    const nameOf = (id) => people.find((p) => p.id === id)?.username;
     res.render('admin/order', {
-      title: `Pedido ${orderCode(order.id)}`, order, family: userOf(order), items: orders.orderItems(order.id),
+      title: req.t('Pedido {code}', { code: orderCode(order.id) }), order, family: userOf(order), items: orders.orderItems(order.id),
       events: orders.orderEvents(order.id), transitions: TRANSITIONS[order.status],
+      paidBy: nameOf(order.paid_by), deliveredBy: nameOf(order.delivered_by),
     });
   });
 
@@ -108,18 +140,19 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     if (!order) return res.status(404).render('error', { title: 'No encontrado', message: 'Ese pedido no existe.' });
     const status = String(req.body.status || '');
     let note = String(req.body.note || '').trim().slice(0, 300) || null;
+    if (status === 'pendiente_entrega' && order.status === 'pendiente_pago') note = 'Cobrado sin QR';
     if (status === 'entregado') {
       const code = String(req.body.code || '').trim().toUpperCase();
       if (code) {
-        if (code !== order.delivery_code) {
-          flash(req, 'error', 'El código de entrega no coincide con el de este pedido.');
+        if (code !== order.pickup_code) {
+          flash(req, 'error', 'El código de recogida no coincide con el de este pedido.');
           return res.redirect(`/admin/pedidos/${order.id}`);
         }
-        note = note || 'Entregado con código de entrega';
-      } else if (req.body.force === '1') {
-        note = `Entregado SIN QR/código${note ? `: ${note}` : ''}`;
+        note = 'Entregado con código de recogida';
+      } else if (req.body.force === '1' && note) {
+        note = `Entregado SIN QR/código: ${note}`;
       } else {
-        flash(req, 'error', 'Para marcar como entregado introduce el código de entrega de la familia (o escanea su QR).');
+        flash(req, 'error', 'Para marcar como entregado escanea el QR de recogida o introduce su código.');
         return res.redirect(`/admin/pedidos/${order.id}`);
       }
     }
@@ -127,27 +160,55 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     res.redirect(req.body.back === 'list' ? '/admin/pedidos?estado=pendiente_pago' : `/admin/pedidos/${order.id}`);
   });
 
-  // ---------- Entrega con QR / código ----------
-  router.get('/entrega', (req, res) => {
+  // ---------- Escáner: QR de pago / QR de recogida ----------
+  router.get('/escanear', (req, res) => {
     if (req.query.codigo) {
-      const order = db.prepare('SELECT * FROM orders WHERE delivery_code = ?').get(String(req.query.codigo).trim().toUpperCase());
-      if (order) return res.redirect(`/admin/entrega/${order.qr_token}`);
-      return res.status(404).render('admin/delivery-search', { title: 'Entregar pedido', error: 'No hay ningún pedido con ese código.' });
+      const order = db.prepare('SELECT * FROM orders WHERE pickup_code = ?').get(String(req.query.codigo).trim().toUpperCase());
+      if (order) return res.redirect(`/admin/qr/${order.pickup_token}`);
+      return res.status(404).render('admin/scan', { title: 'Escanear', error: 'No hay ningún pedido con ese código de recogida.' });
     }
-    res.render('admin/delivery-search', { title: 'Entregar pedido' });
+    res.render('admin/scan', { title: 'Escanear' });
   });
 
-  router.get('/entrega/:token', (req, res) => {
-    const order = db.prepare('SELECT * FROM orders WHERE qr_token = ?').get(req.params.token);
-    if (!order) return res.status(404).render('error', { title: 'QR no válido', message: 'Este QR no corresponde a ningún pedido.' });
-    res.render('admin/delivery', { title: 'Entregar pedido', order, family: userOf(order), items: orders.orderItems(order.id) });
+  function scanned(req, res) {
+    const found = orders.findByToken(req.params.token);
+    if (!found) {
+      res.status(404).render('error', { title: 'QR no válido', message: 'Este QR no corresponde a ningún pedido. Puede ser un QR antiguo: pide a la familia que abra el pedido en la web.' });
+      return null;
+    }
+    return found;
+  }
+
+  router.get('/qr/:token', (req, res) => {
+    const found = scanned(req, res);
+    if (!found) return;
+    const { order, kind } = found;
+    res.render('admin/scan-result', {
+      title: req.t('Pedido {code}', { code: orderCode(order.id) }), order, kind, token: req.params.token,
+      family: userOf(order), items: orders.orderItems(order.id),
+    });
   });
 
-  router.post('/entrega/:token', (req, res) => {
-    const order = db.prepare('SELECT * FROM orders WHERE qr_token = ?').get(req.params.token);
-    if (!order) return res.status(404).render('error', { title: 'QR no válido', message: 'Este QR no corresponde a ningún pedido.' });
-    applyStatus(req, order, 'entregado', 'Entregado con QR');
-    res.redirect(`/admin/entrega/${order.qr_token}`);
+  router.post('/qr/:token/cobrar', (req, res) => {
+    const found = scanned(req, res);
+    if (!found) return;
+    if (found.kind !== 'pago' || found.order.status !== 'pendiente_pago') {
+      flash(req, 'error', 'Este pedido ya no está pendiente de pago.');
+    } else if (applyStatus(req, found.order, 'pendiente_entrega', 'Cobrado con QR de pago')) {
+      flash(req, 'ok', 'Cobro registrado. La familia ha recibido el comprobante y el QR de recogida por correo.');
+    }
+    res.redirect(`/admin/qr/${req.params.token}`);
+  });
+
+  router.post('/qr/:token/entregar', (req, res) => {
+    const found = scanned(req, res);
+    if (!found) return;
+    if (found.kind !== 'recogida') {
+      flash(req, 'error', 'Este es el QR de pago. Para entregar hay que escanear el QR de recogida.');
+    } else {
+      applyStatus(req, found.order, 'entregado', 'Entregado con QR de recogida');
+    }
+    res.redirect(`/admin/qr/${req.params.token}`);
   });
 
   // ---------- Resumen para el proveedor ----------
@@ -157,11 +218,11 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     const marks = chosen.map(() => '?').join(',');
     const periodSql = req.query.periodo ? 'AND o.period_id = ?' : '';
     const params = [...chosen, ...(req.query.periodo ? [Number(req.query.periodo)] : [])];
-    const lines = db.prepare(`SELECT i.product_name, i.size, SUM(i.quantity) AS qty, SUM(i.quantity * i.unit_price_cents) AS amount
+    const lines = db.prepare(`SELECT i.product_name, MAX(i.product_name_ca) AS product_name_ca, i.size, SUM(i.quantity) AS qty, SUM(i.quantity * i.unit_price_cents) AS amount
       FROM order_items i JOIN orders o ON o.id = i.order_id
       WHERE o.status IN (${marks}) ${periodSql}
       GROUP BY i.product_name, i.size ORDER BY i.product_name, i.size`).all(...params);
-    const custom = db.prepare(`SELECT i.product_name, i.size, i.custom_name, i.custom_number, i.quantity, o.id AS order_id,
+    const custom = db.prepare(`SELECT i.product_name, i.product_name_ca, i.size, i.custom_name, i.custom_number, i.quantity, o.id AS order_id,
         o.status, u.player_name
       FROM order_items i JOIN orders o ON o.id = i.order_id JOIN users u ON u.id = o.user_id
       WHERE i.custom_name IS NOT NULL AND o.status IN (${marks}) ${periodSql}
@@ -172,7 +233,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
 
   // ---------- Productos ----------
   router.get('/productos', (req, res) => {
-    const list = db.prepare(`SELECT p.*, c.name AS category FROM products p LEFT JOIN categories c ON c.id = p.category_id
+    const list = db.prepare(`SELECT p.*, c.name AS category, c.name_ca AS category_ca FROM products p LEFT JOIN categories c ON c.id = p.category_id
       ORDER BY p.active DESC, c.sort_order, p.name`).all();
     res.render('admin/products', { title: 'Productos', list });
   });
@@ -193,7 +254,9 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     const b = req.body;
     const data = {
       name: String(b.name || '').trim().slice(0, 100),
+      name_ca: String(b.name_ca || '').trim().slice(0, 100) || null,
       description: String(b.description || '').trim().slice(0, 1000) || null,
+      description_ca: String(b.description_ca || '').trim().slice(0, 1000) || null,
       category_id: Number(b.category_id) || null,
       price_cents: parseMoney(b.price),
       personalization: b.personalization ? 1 : 0,
@@ -215,8 +278,9 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       removeUpload(req.file?.filename);
       return res.status(400).render('admin/product-form', { title: 'Nuevo producto', product: data, categories: categories(), error });
     }
-    const info = db.prepare(`INSERT INTO products (name, description, category_id, price_cents, personalization, sizes, active, image)
-      VALUES (@name, @description, @category_id, @price_cents, @personalization, @sizes, @active, @image)`)
+    const info = db.prepare(`INSERT INTO products (name, name_ca, description, description_ca, category_id, price_cents,
+        personalization, sizes, active, image)
+      VALUES (@name, @name_ca, @description, @description_ca, @category_id, @price_cents, @personalization, @sizes, @active, @image)`)
       .run({ ...data, image: req.file?.filename || null });
     flash(req, 'ok', 'Producto creado.');
     res.redirect(`/admin/productos/${info.lastInsertRowid}`);
@@ -234,7 +298,8 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     }
     let image = product.image;
     if (req.file) { removeUpload(product.image); image = req.file.filename; } else if (req.body.remove_image) { removeUpload(product.image); image = null; }
-    db.prepare(`UPDATE products SET name = @name, description = @description, category_id = @category_id,
+    db.prepare(`UPDATE products SET name = @name, name_ca = @name_ca, description = @description,
+      description_ca = @description_ca, category_id = @category_id,
       price_cents = @price_cents, personalization = @personalization, sizes = @sizes, active = @active, image = @image
       WHERE id = @id`).run({ ...data, image, id: product.id });
     flash(req, 'ok', 'Producto guardado. Los pedidos ya hechos mantienen el precio con el que se pidieron.');
@@ -246,7 +311,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     if (product) {
       db.prepare('DELETE FROM products WHERE id = ?').run(product.id);
       removeUpload(product.image);
-      flash(req, 'ok', `Producto «${product.name}» eliminado. Los pedidos existentes no se ven afectados.`);
+      flash(req, 'ok', 'Producto «{name}» eliminado. Los pedidos existentes no se ven afectados.', { name: product.name });
     }
     res.redirect('/admin/productos');
   });
@@ -260,13 +325,14 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
 
   router.post('/categorias', (req, res) => {
     const name = String(req.body.name || '').trim().slice(0, 50);
+    const nameCa = String(req.body.name_ca || '').trim().slice(0, 50) || null;
     if (!name) {
       flash(req, 'error', 'Escribe un nombre.');
     } else {
       let slug = slugify(name);
       while (db.prepare('SELECT 1 FROM categories WHERE slug = ?').get(slug)) slug += '-2';
       const max = db.prepare('SELECT COALESCE(MAX(sort_order), -1) AS m FROM categories').get().m;
-      db.prepare('INSERT INTO categories (name, slug, sort_order) VALUES (?, ?, ?)').run(name, slug, max + 1);
+      db.prepare('INSERT INTO categories (name, name_ca, slug, sort_order) VALUES (?, ?, ?, ?)').run(name, nameCa, slug, max + 1);
       flash(req, 'ok', 'Categoría creada.');
     }
     res.redirect('/admin/categorias');
@@ -275,8 +341,9 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
   router.post('/categorias/:id', (req, res) => {
     const name = String(req.body.name || '').trim().slice(0, 50);
     if (name) {
-      db.prepare('UPDATE categories SET name = ?, sort_order = ? WHERE id = ?')
-        .run(name, Number.parseInt(req.body.sort_order, 10) || 0, Number(req.params.id));
+      db.prepare('UPDATE categories SET name = ?, name_ca = ?, sort_order = ? WHERE id = ?')
+        .run(name, String(req.body.name_ca || '').trim().slice(0, 50) || null,
+          Number.parseInt(req.body.sort_order, 10) || 0, Number(req.params.id));
       flash(req, 'ok', 'Categoría guardada.');
     }
     res.redirect('/admin/categorias');
@@ -356,19 +423,19 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       player_number: String(body.player_number || '').trim().slice(0, 3) || null,
       team: String(body.team || '').trim().slice(0, 40) || null,
     };
-    if (!/^[A-Z0-9]{5,12}$/.test(dni)) return { error: `DNI no válido: «${body.dni || ''}».` };
-    if (!value.player_name) return { error: `Falta el nombre del jugador/a (${dni}).` };
-    return { value, warning: isValidDni(dni) ? null : `Ojo: la letra del DNI ${dni} no parece correcta.` };
+    if (!/^[A-Z0-9]{5,12}$/.test(dni)) return { error: { key: 'DNI no válido: «{dni}».', params: { dni: body.dni || '' } } };
+    if (!value.player_name) return { error: { key: 'Falta el nombre del jugador/a ({dni}).', params: { dni } } };
+    return { value, warning: isValidDni(dni) ? null : { key: 'Ojo: la letra del DNI {dni} no parece correcta.', params: { dni } } };
   }
 
   router.post('/familias', (req, res) => {
     const { error, value, warning } = readFamily(req.body);
-    if (error) flash(req, 'error', error);
-    else if (db.prepare('SELECT 1 FROM users WHERE dni = ?').get(value.dni)) flash(req, 'error', `El DNI ${value.dni} ya existe.`);
+    if (error) flash(req, 'error', error.key, error.params);
+    else if (db.prepare('SELECT 1 FROM users WHERE dni = ?').get(value.dni)) flash(req, 'error', 'El DNI {dni} ya existe.', { dni: value.dni });
     else {
       db.prepare(`INSERT INTO users (role, dni, player_name, player_number, team)
         VALUES ('family', @dni, @player_name, @player_number, @team)`).run(value);
-      flash(req, warning ? 'error' : 'ok', `Jugador/a añadido/a.${warning ? ` ${warning}` : ''}`);
+      flash(req, warning ? 'error' : 'ok', warning ? `${req.t('Jugador/a añadido/a.')} ${req.t(warning.key, warning.params)}` : 'Jugador/a añadido/a.');
     }
     res.redirect('/admin/familias');
   });
@@ -387,15 +454,15 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
         const [dni, playerName, number, team] = line.split(/[;,\t]/).map((s) => s.trim());
         if (/^dni$/i.test(dni)) continue; // cabecera
         const { error, value, warning } = readFamily({ dni, player_name: playerName, player_number: number, team });
-        if (error) { problems.push(error); continue; }
-        if (warning) problems.push(warning);
+        if (error) { problems.push(req.t(error.key, error.params)); continue; }
+        if (warning) problems.push(req.t(warning.key, warning.params));
         const exists = db.prepare('SELECT 1 FROM users WHERE dni = ?').get(value.dni);
         insert.run(value);
         if (exists) updated++; else added++;
       }
     })();
-    const msg = `Importación: ${added} nuevos, ${updated} actualizados.`;
-    flash(req, problems.length ? 'error' : 'ok', problems.length ? `${msg} Revisa: ${problems.join(' ')}` : msg);
+    const msg = req.t('Importación: {added} nuevos, {updated} actualizados.', { added, updated });
+    flash(req, problems.length ? 'error' : 'ok', problems.length ? `${msg} ${req.t('Revisa:')} ${problems.join(' ')}` : msg);
     res.redirect('/admin/familias');
   });
 
@@ -411,7 +478,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     if (!family) return res.redirect('/admin/familias');
     const { error, value } = readFamily(req.body);
     const email = String(req.body.email || '').trim().toLowerCase() || null;
-    if (error) flash(req, 'error', error);
+    if (error) flash(req, 'error', error.key, error.params);
     else if (email && !isValidEmail(email)) flash(req, 'error', 'Correo no válido.');
     else if (value.dni !== family.dni && db.prepare('SELECT 1 FROM users WHERE dni = ?').get(value.dni)) flash(req, 'error', 'Ese DNI ya existe.');
     else {
@@ -461,7 +528,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       db.prepare(`INSERT INTO users (role, username, email, password_hash, activated_at, player_name)
         VALUES ('admin', ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), ?)`)
         .run(username, email, bcrypt.hashSync(password, 10), String(req.body.name || '').trim() || username);
-      flash(req, 'ok', `Administrador «${username}» creado.`);
+      flash(req, 'ok', 'Administrador «{name}» creado.', { name: username });
     }
     res.redirect('/admin/admins');
   });
