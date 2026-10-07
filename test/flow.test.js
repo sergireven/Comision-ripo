@@ -278,3 +278,51 @@ test('cancelación por la familia y recuperación de contraseña', async () => {
   // Token de un solo uso
   assert.strictEqual((await anon.get('/recuperar/tok')).status, 400);
 });
+
+test('alta por la comisión con correo: la cuenta queda activada y recibe la contraseña', async () => {
+  const { db, app, mails } = setup();
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  let _csrf = await csrfOf(adm, '/admin/familias');
+
+  // Alta individual con correo
+  await adm.post('/admin/familias').type('form').send({ _csrf, dni: '87654321X', player_name: 'Marc Soler', email: 'marc@example.com' });
+  const marc = db.prepare("SELECT * FROM users WHERE dni = '87654321X'").get();
+  assert.ok(marc.activated_at);
+  assert.strictEqual(marc.email, 'marc@example.com');
+  await wait();
+  assert.ok(mails().some((m) => m.to_address === 'marc@example.com'));
+
+  // Nadie puede «activarla» de nuevo con el DNI
+  const other = request.agent(app);
+  const c = await csrfOf(other, '/primer-acceso');
+  const res = await other.post('/primer-acceso').type('form').send({ _csrf: c, dni: '87654321X' });
+  assert.strictEqual(res.status, 409);
+
+  // Importación con correo: solo se envía a cuentas sin activar
+  db.prepare("UPDATE users SET email = 'laia@example.com', password_hash = 'x', activated_at = 'x' WHERE dni = '12345678Z'").run();
+  await adm.post('/admin/familias/importar').type('form').send({
+    _csrf,
+    csv: '12345678Z;Laia Pérez;7;Aleví A;otro@example.com\nX1234567L;Nil Garcia;3;Infantil;nil@example.com\nY0000000Z;Sin Correo;4;Infantil',
+  });
+  const laia = db.prepare("SELECT * FROM users WHERE dni = '12345678Z'").get();
+  assert.strictEqual(laia.email, 'laia@example.com', 'no cambia el correo ni la contraseña de quien ya entra');
+  assert.strictEqual(laia.password_hash, 'x');
+  assert.ok(db.prepare("SELECT activated_at FROM users WHERE dni = 'X1234567L'").get().activated_at);
+  assert.strictEqual(db.prepare("SELECT activated_at FROM users WHERE dni = 'Y0000000Z'").get().activated_at, null);
+
+  // Reenviar acceso desde la ficha: genera contraseña nueva
+  const before = db.prepare("SELECT password_hash FROM users WHERE dni = '87654321X'").get().password_hash;
+  _csrf = await csrfOf(adm, `/admin/familias/${marc.id}`);
+  await adm.post(`/admin/familias/${marc.id}/enviar-acceso`).type('form').send({ _csrf, email: 'marc@example.com' });
+  assert.notStrictEqual(db.prepare("SELECT password_hash FROM users WHERE dni = '87654321X'").get().password_hash, before);
+
+  // Una familia no puede dar de alta usuarios
+  const fam = request.agent(app);
+  db.prepare("UPDATE users SET password_hash = ? WHERE dni = '12345678Z'").run(bcrypt.hashSync('clave-familia', 4));
+  await login(fam, '12345678Z', 'clave-familia');
+  const fc = await csrfOf(fam, '/tienda');
+  const denied = await fam.post('/admin/familias').type('form').send({ _csrf: fc, dni: '11111111H', player_name: 'Intruso' });
+  assert.strictEqual(denied.status, 403);
+  assert.strictEqual(db.prepare("SELECT COUNT(*) n FROM users WHERE dni = '11111111H'").get().n, 0);
+});

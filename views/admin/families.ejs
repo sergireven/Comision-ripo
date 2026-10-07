@@ -14,13 +14,15 @@
       <label><%= t('Dorsal') %> <input name="player_number" inputmode="numeric" maxlength="3" class="qty"></label>
       <label class="grow"><%= t('Equipo') %> <input name="team" placeholder="<%= t('Ej.: Benjamín A') %>"></label>
     </div>
+    <label><%= t('Correo de la familia (opcional)') %> <input type="email" name="email"></label>
+    <p class="hint"><%= t('Si lo indicas, la cuenta queda activada y la familia recibe su contraseña por correo. Si no, tendrá que hacer el «Primer acceso» con el DNI.') %></p>
     <button class="btn primary"><%= t('Añadir') %></button>
   </form>
   <form method="post" action="/admin/familias/importar" class="card form">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
     <h2><%= t('Importar listado') %></h2>
-    <p class="small muted"><%= t('Una línea por jugador/a: DNI;Nombre;Dorsal;Equipo (puedes copiar y pegar desde Excel). Si el DNI ya existe se actualizan sus datos.') %></p>
-    <textarea name="csv" rows="5" placeholder="12345678Z;Laia Pérez Gómez;7;Aleví A"></textarea>
+    <p class="small muted"><%= t('Una línea por jugador/a: DNI;Nombre;Dorsal;Equipo;Correo (puedes copiar y pegar desde Excel). Si el DNI ya existe se actualizan sus datos. Si pones el correo, se envía la contraseña a las cuentas que aún no están activadas.') %></p>
+    <textarea name="csv" rows="5" placeholder="12345678Z;Laia Pérez Gómez;7;Aleví A;familia@correo.com"></textarea>
     <button class="btn"><%= t('Importar') %></button>
   </form>
 </div>

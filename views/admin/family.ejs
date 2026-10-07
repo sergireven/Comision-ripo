@@ -21,6 +21,14 @@
     <% } else { %>
       <p><%= t('La familia aún no ha hecho el primer acceso.') %></p>
     <% } %>
+    <form method="post" action="/admin/familias/<%= family.id %>/enviar-acceso" class="form"
+          data-confirm="<%= family.activated_at ? t('Se generará una contraseña nueva y la actual dejará de funcionar. ¿Continuar?') : t('¿Enviar la contraseña por correo?') %>">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label><%= t('Enviar acceso por correo a') %>
+        <input type="email" name="email" value="<%= family.email || '' %>" required>
+      </label>
+      <button class="btn"><%= family.activated_at ? t('Enviar contraseña nueva') : t('Activar y enviar contraseña') %></button>
+    </form>
     <form method="post" action="/admin/familias/<%= family.id %>/reiniciar" data-confirm="<%= t('Se borrará la contraseña y el correo y la familia tendrá que volver a hacer el «Primer acceso». ¿Continuar?') %>">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <button class="btn ghost"><%= t('Reiniciar acceso') %></button>

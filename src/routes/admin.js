@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const { flash, requireAdmin } = require('../middleware');
 const { TRANSITIONS } = require('../services');
 const {
-  normalizeDni, isValidDni, isValidEmail, parseMoney, fromLocalInput, slugify, orderCode, STATUS, formatDate,
+  normalizeDni, isValidDni, isValidEmail, generatePassword, parseMoney, fromLocalInput, slugify, orderCode, STATUS, formatDate,
 } = require('../util');
 
 const STATUSES = Object.keys(STATUS);
@@ -415,6 +415,23 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     res.render('admin/families', { title: 'Familias', list, q: req.query.q || '' });
   });
 
+  /**
+   * Activa la cuenta con el correo indicado: genera una contraseña y se la envía a la familia.
+   * Si ya tenía contraseña, la anterior deja de funcionar y se cierran sus sesiones.
+   */
+  function sendAccess(req, userId, email) {
+    const password = generatePassword();
+    db.transaction(() => {
+      db.prepare(`UPDATE users SET email = ?, password_hash = ?,
+        activated_at = COALESCE(activated_at, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) WHERE id = ? AND role = 'family'`)
+        .run(email, bcrypt.hashSync(password, 10), userId);
+      db.prepare("DELETE FROM sessions WHERE json_extract(data, '$.userId') = ?").run(userId);
+    })();
+    mailer.accountActivated(db.prepare('SELECT * FROM users WHERE id = ?').get(userId), password, req.appUrl);
+  }
+
+  const readEmail = (value) => String(value || '').trim().toLowerCase();
+
   function readFamily(body) {
     const dni = normalizeDni(body.dni);
     const value = {
@@ -430,12 +447,16 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
 
   router.post('/familias', (req, res) => {
     const { error, value, warning } = readFamily(req.body);
+    const email = readEmail(req.body.email);
     if (error) flash(req, 'error', error.key, error.params);
+    else if (email && !isValidEmail(email)) flash(req, 'error', 'Correo no válido.');
     else if (db.prepare('SELECT 1 FROM users WHERE dni = ?').get(value.dni)) flash(req, 'error', 'El DNI {dni} ya existe.', { dni: value.dni });
     else {
-      db.prepare(`INSERT INTO users (role, dni, player_name, player_number, team)
+      const info = db.prepare(`INSERT INTO users (role, dni, player_name, player_number, team)
         VALUES ('family', @dni, @player_name, @player_number, @team)`).run(value);
-      flash(req, warning ? 'error' : 'ok', warning ? `${req.t('Jugador/a añadido/a.')} ${req.t(warning.key, warning.params)}` : 'Jugador/a añadido/a.');
+      if (email) sendAccess(req, info.lastInsertRowid, email);
+      const msg = req.t(email ? 'Jugador/a añadido/a. Se ha enviado la contraseña a {email}.' : 'Jugador/a añadido/a.', { email });
+      flash(req, warning ? 'error' : 'ok', warning ? `${msg} ${req.t(warning.key, warning.params)}` : msg);
     }
     res.redirect('/admin/familias');
   });
@@ -445,23 +466,30 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     let added = 0;
     let updated = 0;
     const problems = [];
+    const invites = [];
     const insert = db.prepare(`INSERT INTO users (role, dni, player_name, player_number, team)
       VALUES ('family', @dni, @player_name, @player_number, @team)
       ON CONFLICT(dni) DO UPDATE SET player_name = excluded.player_name,
         player_number = excluded.player_number, team = excluded.team`);
     db.transaction(() => {
       for (const line of lines) {
-        const [dni, playerName, number, team] = line.split(/[;,\t]/).map((s) => s.trim());
+        const [dni, playerName, number, team, rawEmail] = line.split(/[;,\t]/).map((s) => s.trim());
         if (/^dni$/i.test(dni)) continue; // cabecera
         const { error, value, warning } = readFamily({ dni, player_name: playerName, player_number: number, team });
         if (error) { problems.push(req.t(error.key, error.params)); continue; }
         if (warning) problems.push(req.t(warning.key, warning.params));
-        const exists = db.prepare('SELECT 1 FROM users WHERE dni = ?').get(value.dni);
+        const email = readEmail(rawEmail);
+        if (email && !isValidEmail(email)) problems.push(req.t('Correo no válido para {dni}: «{email}».', { dni: value.dni, email }));
+        const exists = db.prepare('SELECT activated_at FROM users WHERE dni = ?').get(value.dni);
         insert.run(value);
         if (exists) updated++; else added++;
+        // Solo se envía el acceso a cuentas sin activar: nunca se cambia la contraseña de quien ya entra.
+        if (email && isValidEmail(email) && !exists?.activated_at) invites.push([value.dni, email]);
       }
     })();
-    const msg = req.t('Importación: {added} nuevos, {updated} actualizados.', { added, updated });
+    for (const [dni, email] of invites) sendAccess(req, db.prepare('SELECT id FROM users WHERE dni = ?').get(dni).id, email);
+    let msg = req.t('Importación: {added} nuevos, {updated} actualizados.', { added, updated });
+    if (invites.length) msg += ` ${req.t('Se ha enviado la contraseña por correo a {n} familia(s).', { n: invites.length })}`;
     flash(req, problems.length ? 'error' : 'ok', problems.length ? `${msg} ${req.t('Revisa:')} ${problems.join(' ')}` : msg);
     res.redirect('/admin/familias');
   });
@@ -485,6 +513,19 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       db.prepare(`UPDATE users SET dni = @dni, player_name = @player_name, player_number = @player_number, team = @team,
         email = @email WHERE id = @id`).run({ ...value, email, id: family.id });
       flash(req, 'ok', 'Datos guardados.');
+    }
+    res.redirect(`/admin/familias/${family.id}`);
+  });
+
+  router.post('/familias/:id/enviar-acceso', (req, res) => {
+    const family = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'family'").get(Number(req.params.id));
+    if (!family) return res.redirect('/admin/familias');
+    const email = readEmail(req.body.email) || family.email;
+    if (!isValidEmail(email)) {
+      flash(req, 'error', 'Introduce un correo válido.');
+    } else {
+      sendAccess(req, family.id, email);
+      flash(req, 'ok', 'Se ha enviado una contraseña nueva a {email}.', { email });
     }
     res.redirect(`/admin/familias/${family.id}`);
   });

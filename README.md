@@ -8,7 +8,7 @@ El pago se hace en mano a la comisión. La web controla qué ha pedido cada fami
 ## Qué hace
 
 **Familias** (usuario = DNI del jugador/a)
-- **Primer acceso**: la familia introduce el DNI → indica el correo de contacto → la web genera una contraseña única (tipo `RIPO-K7QM-3XTA`), la muestra en pantalla y la envía por correo.
+- **Primer acceso** (solo para cuentas que la comisión ya ha dado de alta sin correo): la familia introduce el DNI → indica el correo de contacto → la web genera una contraseña única (tipo `RIPO-K7QM-3XTA`), la muestra en pantalla y la envía por correo.
 - **Recuperar acceso**: se envía un enlace (válido 1 h y de un solo uso) al correo de la cuenta para generar una contraseña nueva.
 - **Tienda** con desplegable por tipo de producto, foto, precio, cantidad y talla. Los productos marcados como «nombre + dorsal» (p. ej. el botellero) piden ambos datos (se rellenan solos con los del jugador/a).
 - **Carrito** → revisar → «Realizar pedido». El pedido queda **pendiente de pago** y se puede cancelar mientras no esté pagado.
@@ -25,7 +25,7 @@ El pago se hace en mano a la comisión. La web controla qué ha pedido cada fami
 - **Resumen** para el proveedor: unidades por producto y talla, más el listado de personalizaciones (nombre y dorsal). Imprimible.
 - **Productos** (nombre y descripción en castellano y, opcionalmente, en catalán; foto, precio, categoría, tallas, «requiere nombre + dorsal», visible/oculto) y **categorías**.
 - **Periodos de pedidos**: fechas de apertura y cierre (hora de Madrid). Fuera de un periodo no se puede añadir al carrito ni confirmar pedidos.
-- **Familias**: alta individual o importación pegando desde Excel (`DNI;Nombre;Dorsal;Equipo`), edición de datos y correo, reinicio del acceso.
+- **Familias** (solo la comisión puede dar de alta usuarios): alta individual o importación pegando desde Excel (`DNI;Nombre;Dorsal;Equipo;Correo`). Si se indica el correo, la cuenta queda activada y la familia recibe su contraseña por correo; si no, la familia hace el «Primer acceso» con el DNI. Desde la ficha se puede enviar una contraseña nueva, editar los datos o reiniciar el acceso.
 - **Administradores** y **registro de correos** enviados (sin contraseñas).
 
 ### Pago y entrega con QR
