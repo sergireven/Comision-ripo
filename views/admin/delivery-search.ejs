@@ -1,0 +1,12 @@
+<%- include('../partials/header') %>
+<section class="card narrow">
+  <h1>Entregar pedido</h1>
+  <p><strong>Opción 1:</strong> escanea el QR que enseña la familia con la cámara del móvil (con la sesión de la comisión iniciada). Se abrirá el pedido para confirmar la entrega.</p>
+  <p><strong>Opción 2:</strong> escribe el código de entrega de 6 caracteres:</p>
+  <% if (typeof error !== 'undefined') { %><div class="flash error"><%= error %></div><% } %>
+  <form method="get" action="/admin/entrega" class="row">
+    <input name="codigo" class="grow code-input" autocapitalize="characters" maxlength="6" required autofocus placeholder="K7QM3X">
+    <button class="btn primary">Buscar</button>
+  </form>
+</section>
+<%- include('../partials/footer') %>

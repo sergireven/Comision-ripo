@@ -1,0 +1,22 @@
+<%- include('../partials/header') %>
+<section class="auth">
+  <div class="card narrow">
+    <h1>Recuperar acceso</h1>
+    <% if (typeof sent !== 'undefined') { %>
+      <div class="flash ok">Si el DNI está registrado y activado, hemos enviado un enlace al correo de contacto de la cuenta. Revisa también la carpeta de spam.</div>
+      <p class="muted">¿Ya no tienes acceso a ese correo? Pide a la comisión que reinicie tu acceso.</p>
+    <% } else { %>
+      <% if (typeof error !== 'undefined') { %><div class="flash error"><%= error %></div><% } %>
+      <p>Te enviaremos un enlace al correo asociado a la cuenta para generar una contraseña nueva.</p>
+      <form method="post" action="/recuperar" class="form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <label>DNI del jugador/a (o usuario)
+          <input name="usuario" autocapitalize="characters" required autofocus>
+        </label>
+        <button class="btn primary block">Enviar enlace</button>
+      </form>
+    <% } %>
+    <p class="center"><a href="/login">Volver a entrar</a></p>
+  </div>
+</section>
+<%- include('../partials/footer') %>

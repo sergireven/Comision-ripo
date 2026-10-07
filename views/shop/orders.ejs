@@ -1,0 +1,18 @@
+<%- include('../partials/header') %>
+<h1>Mis pedidos</h1>
+<% if (pending) { %>
+  <div class="card highlight">Tienes <strong><%= formatMoney(pending) %></strong> pendientes de pagar a la comisión.</div>
+<% } %>
+<% if (!list.length) { %>
+  <div class="card center"><p>Aún no has hecho ningún pedido.</p><a class="btn primary" href="/tienda">Ir a la tienda</a></div>
+<% } else { %>
+  <div class="order-list">
+  <% list.forEach(o => { %>
+    <a class="card order-row" href="/pedidos/<%= o.id %>">
+      <div><strong>Pedido <%= orderCode(o.id) %></strong><br><span class="muted small"><%= formatDate(o.created_at) %> · <%= o.units %> artículo(s)</span></div>
+      <div class="right"><%- include('../partials/status', { status: o.status }) %><br><strong><%= formatMoney(o.total_cents) %></strong></div>
+    </a>
+  <% }) %>
+  </div>
+<% } %>
+<%- include('../partials/footer') %>

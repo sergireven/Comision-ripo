@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= typeof title !== 'undefined' ? title + ' · ' : '' %><%= clubName %> · Botiga</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" href="/static/img/logo.svg">
+</head>
+<body class="<%= user && user.role === 'admin' ? 'is-admin' : '' %>">
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="/">
+      <img src="/static/img/logo.svg" alt="" width="36" height="36">
+      <span><strong><%= clubName %></strong><small>Botiga del club</small></span>
+    </a>
+    <% if (user) { %>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Menú">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span></label>
+    <nav class="nav">
+      <% if (user.role === 'family') { %>
+        <a href="/tienda" class="<%= path.startsWith('/tienda') ? 'active' : '' %>">Tienda</a>
+        <a href="/carrito" class="<%= path.startsWith('/carrito') ? 'active' : '' %>">Carrito<% if (cartCount) { %> <span class="pill"><%= cartCount %></span><% } %></a>
+        <a href="/pedidos" class="<%= path.startsWith('/pedidos') ? 'active' : '' %>">Mis pedidos</a>
+      <% } else { %>
+        <a href="/admin" class="<%= path === '/admin' || path === '/admin/' ? 'active' : '' %>">Panel</a>
+        <a href="/admin/pedidos" class="<%= path.startsWith('/admin/pedidos') ? 'active' : '' %>">Pedidos</a>
+        <a href="/admin/entrega" class="<%= path.startsWith('/admin/entrega') ? 'active' : '' %>">Entregar</a>
+        <a href="/admin/resumen" class="<%= path.startsWith('/admin/resumen') ? 'active' : '' %>">Resumen</a>
+        <a href="/admin/productos" class="<%= path.startsWith('/admin/productos') || path.startsWith('/admin/categorias') ? 'active' : '' %>">Productos</a>
+        <a href="/admin/periodos" class="<%= path.startsWith('/admin/periodos') ? 'active' : '' %>">Periodos</a>
+        <a href="/admin/familias" class="<%= path.startsWith('/admin/familias') ? 'active' : '' %>">Familias</a>
+      <% } %>
+      <a href="/cuenta" class="<%= path.startsWith('/cuenta') ? 'active' : '' %>">Mi cuenta</a>
+      <form method="post" action="/logout" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike">Salir</button></form>
+    </nav>
+    <% } %>
+  </div>
+</header>
+
+<% if (user) { %>
+<div class="shopbar <%= shop.open ? 'open' : 'closed' %>">
+  <div class="wrap">
+    <% if (shop.open) { %>
+      <span class="dot"></span> Pedidos abiertos<% if (shop.current.name) { %> · <strong><%= shop.current.name %></strong><% } %>.
+      Cierra el <%= formatDate(shop.current.ends_at) %> —
+      quedan <strong data-countdown="<%= shop.current.ends_at %>">…</strong>
+    <% } else if (shop.next) { %>
+      <span class="dot"></span> Pedidos cerrados. Próxima apertura (<%= shop.next.name %>): <strong><%= formatDate(shop.next.starts_at) %></strong>
+      — en <strong data-countdown="<%= shop.next.starts_at %>">…</strong>
+    <% } else { %>
+      <span class="dot"></span> Pedidos cerrados. La comisión avisará cuando se abra el próximo periodo.
+    <% } %>
+  </div>
+</div>
+<% } %>
+
+<main class="wrap">
+<% if (flash) { %>
+  <div class="flash <%= flash.type %>" role="status"><%= flash.text %></div>
+<% } %>

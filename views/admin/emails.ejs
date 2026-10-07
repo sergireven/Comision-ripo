@@ -1,0 +1,20 @@
+<%- include('../partials/header') %>
+<h1>Correos enviados</h1>
+<% if (!smtp) { %><div class="flash error">El servidor de correo (SMTP) no está configurado: los correos <strong>no se envían</strong>, solo se registran aquí. Configura SMTP_HOST en el fichero .env.</div><% } %>
+<div class="card table-wrap">
+  <table class="table">
+    <thead><tr><th>Fecha</th><th>Para</th><th>Asunto</th><th>Estado</th></tr></thead>
+    <tbody>
+    <% list.forEach(m => { %>
+      <tr>
+        <td class="small"><%= formatDate(m.created_at) %></td>
+        <td><%= m.to_address %></td>
+        <td><details><summary><%= m.subject %></summary><pre class="mail"><%= m.body %></pre></details></td>
+        <td><span class="badge <%= m.status === 'enviado' ? 'ok' : m.status === 'error' ? 'warn' : 'muted' %>"><%= m.status %></span><% if (m.error) { %><br><span class="small"><%= m.error %></span><% } %></td>
+      </tr>
+    <% }) %>
+    <% if (!list.length) { %><tr><td colspan="4" class="center muted">Aún no se ha enviado ningún correo.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,35 @@
+<%- include('../partials/header') %>
+<p><a href="/admin/productos">← Productos</a></p>
+<h1>Categorías</h1>
+<div class="card table-wrap">
+  <table class="table">
+    <thead><tr><th>Nombre</th><th>Orden</th><th>Productos</th><th></th></tr></thead>
+    <tbody>
+    <% list.forEach(c => { %>
+      <tr>
+        <td colspan="2">
+          <form method="post" action="/admin/categorias/<%= c.id %>" class="row tight">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <input name="name" value="<%= c.name %>" class="grow" required>
+            <input type="number" name="sort_order" value="<%= c.sort_order %>" class="qty" aria-label="Orden">
+            <button class="btn small">Guardar</button>
+          </form>
+        </td>
+        <td><%= c.products %></td>
+        <td>
+          <form method="post" action="/admin/categorias/<%= c.id %>/eliminar" data-confirm="¿Eliminar la categoría «<%= c.name %>»?">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <button class="btn small danger ghost">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+<form method="post" action="/admin/categorias" class="card row">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input name="name" class="grow" placeholder="Nueva categoría (ej.: Gorras)" required>
+  <button class="btn primary">Añadir</button>
+</form>
+<%- include('../partials/footer') %>

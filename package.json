@@ -1,0 +1,41 @@
+{
+  "name": "hc-ripollet-botiga",
+  "version": "1.0.0",
+  "description": "Botiga de marxandatge del Club Hoquei Ripollet (comandes, estats i control de pagaments)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/*.test.js",
+    "create-admin": "node scripts/create-admin.js",
+    "seed-demo": "node scripts/seed-demo.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sergireven/Comision-ripo.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sergireven/Comision-ripo/issues"
+  },
+  "homepage": "https://github.com/sergireven/Comision-ripo#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
+    "dotenv": "^18.0.6",
+    "ejs": "^7.0.1",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "multer": "^2.4.0",
+    "nodemailer": "^10.0.16",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "supertest": "^7.3.1"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

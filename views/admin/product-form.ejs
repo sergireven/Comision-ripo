@@ -1,0 +1,40 @@
+<%- include('../partials/header') %>
+<p><a href="/admin/productos">← Productos</a></p>
+<h1><%= title %></h1>
+<% if (typeof error !== 'undefined') { %><div class="flash error"><%= error %></div><% } %>
+<form method="post" enctype="multipart/form-data" class="card form"
+      action="/admin/productos<%= product.id ? '/' + product.id : '' %>?_csrf=<%= csrf %>">
+  <div class="grid two">
+    <div>
+      <label>Nombre <input name="name" value="<%= product.name || '' %>" maxlength="100" required></label>
+      <label>Categoría
+        <select name="category_id">
+          <option value="">— Sin categoría —</option>
+          <% categories.forEach(c => { %><option value="<%= c.id %>" <%= product.category_id === c.id ? 'selected' : '' %>><%= c.name %></option><% }) %>
+        </select>
+      </label>
+      <label>Precio (€) <input name="price" inputmode="decimal" value="<%= product.price_cents != null ? (product.price_cents / 100).toFixed(2).replace('.', ',') : '' %>" placeholder="25,00" required></label>
+      <label>Tallas (separadas por comas, vacío si no tiene)
+        <input name="sizes" value="<%= product.sizes || '' %>" placeholder="6, 8, 10, 12, 14, S, M, L, XL">
+      </label>
+      <label>Descripción <textarea name="description" rows="3" maxlength="1000"><%= product.description || '' %></textarea></label>
+      <label class="check"><input type="checkbox" name="personalization" value="1" <%= product.personalization ? 'checked' : '' %>> Requiere <strong>nombre + dorsal</strong> del jugador/a</label>
+      <label class="check"><input type="checkbox" name="active" value="1" <%= product.active ? 'checked' : '' %>> Visible en la tienda</label>
+    </div>
+    <div>
+      <label>Foto (JPG, PNG o WEBP, máx. 5 MB)
+        <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" data-preview="#preview">
+      </label>
+      <img id="preview" class="preview" src="<%= product.image ? '/uploads/' + product.image : '' %>" alt="" <%= product.image ? '' : 'hidden' %>>
+      <% if (product.image) { %><label class="check"><input type="checkbox" name="remove_image" value="1"> Quitar foto</label><% } %>
+    </div>
+  </div>
+  <button class="btn primary">Guardar</button>
+</form>
+<% if (product.id) { %>
+  <form method="post" action="/admin/productos/<%= product.id %>/eliminar" data-confirm="¿Eliminar este producto? Los pedidos ya hechos no se ven afectados. (Si solo quieres ocultarlo, desmarca «Visible».)">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <button class="btn danger ghost small">Eliminar producto</button>
+  </form>
+<% } %>
+<%- include('../partials/footer') %>

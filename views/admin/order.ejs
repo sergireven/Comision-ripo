@@ -1,0 +1,95 @@
+<%- include('../partials/header') %>
+<p><a href="/admin/pedidos">← Pedidos</a></p>
+<div class="page-head">
+  <h1>Pedido <%= orderCode(order.id) %></h1>
+  <%- include('../partials/status', { status: order.status }) %>
+</div>
+
+<div class="grid two">
+  <section class="card">
+    <h2>Familia</h2>
+    <dl class="kv">
+      <dt>Jugador/a</dt><dd><a href="/admin/familias/<%= family.id %>"><%= family.player_name %></a></dd>
+      <dt>DNI</dt><dd><%= family.dni %></dd>
+      <% if (family.player_number) { %><dt>Dorsal</dt><dd><%= family.player_number %></dd><% } %>
+      <% if (family.team) { %><dt>Equipo</dt><dd><%= family.team %></dd><% } %>
+      <dt>Correo</dt><dd><%= family.email || '—' %></dd>
+      <dt>Pedido el</dt><dd><%= formatDate(order.created_at) %></dd>
+      <% if (order.paid_at) { %><dt>Pagado el</dt><dd><%= formatDate(order.paid_at) %></dd><% } %>
+      <% if (order.delivered_at) { %><dt>Entregado el</dt><dd><%= formatDate(order.delivered_at) %></dd><% } %>
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>Acciones</h2>
+    <% if (order.status === 'pendiente_pago') { %>
+      <form method="post" action="/admin/pedidos/<%= order.id %>/estado" class="form" data-confirm="¿Has cobrado <%= formatMoney(order.total_cents) %>?">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="hidden" name="status" value="pendiente_entrega">
+        <button class="btn primary block big">Cobrado <%= formatMoney(order.total_cents) %> → pendiente de entrega</button>
+      </form>
+    <% } %>
+    <% if (order.status === 'pendiente_entrega') { %>
+      <form method="post" action="/admin/pedidos/<%= order.id %>/estado" class="form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="hidden" name="status" value="entregado">
+        <label>Código de entrega que enseña la familia
+          <input name="code" autocapitalize="characters" maxlength="6" placeholder="Ej.: K7QM3X">
+        </label>
+        <button class="btn primary block">Confirmar entrega</button>
+        <p class="hint">O escanea su QR con la cámara del móvil.</p>
+      </form>
+      <details class="small">
+        <summary>La familia no tiene el QR/código</summary>
+        <form method="post" action="/admin/pedidos/<%= order.id %>/estado" class="form" data-confirm="¿Marcar como entregado sin código? Quedará registrado.">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <input type="hidden" name="status" value="entregado">
+          <input type="hidden" name="force" value="1">
+          <label>Motivo / quién lo recoge <input name="note" maxlength="300" required></label>
+          <button class="btn ghost">Marcar entregado sin código</button>
+        </form>
+      </details>
+    <% } %>
+
+    <% const other = transitions.filter(s => !(order.status === 'pendiente_pago' && s === 'pendiente_entrega') && s !== 'entregado'); %>
+    <% if (other.length) { %>
+      <h3>Otros cambios</h3>
+      <div class="row wrap-row">
+      <% other.forEach(s => { %>
+        <form method="post" action="/admin/pedidos/<%= order.id %>/estado" data-confirm="¿Cambiar a «<%= STATUS[s].label %>»? Se avisará por correo a la familia.">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <input type="hidden" name="status" value="<%= s %>">
+          <button class="btn small <%= s === 'cancelado' ? 'danger ghost' : 'ghost' %>">
+            <%= s === 'cancelado' ? 'Cancelar pedido' : s === 'pendiente_pago' ? (order.status === 'cancelado' ? 'Reactivar (pendiente de pago)' : 'Deshacer pago') : 'Deshacer entrega' %>
+          </button>
+        </form>
+      <% }) %>
+      </div>
+    <% } %>
+  </section>
+</div>
+
+<div class="card table-wrap">
+  <table class="table">
+    <thead><tr><th>Producto</th><th>Talla</th><th>Nombre</th><th>Dorsal</th><th>Cant.</th><th class="num">Importe</th></tr></thead>
+    <tbody>
+    <% items.forEach(it => { %>
+      <tr><td><%= it.product_name %></td><td><%= it.size || '—' %></td><td><%= it.custom_name || '—' %></td><td><%= it.custom_number || '—' %></td>
+        <td><%= it.quantity %></td><td class="num"><%= formatMoney(it.unit_price_cents * it.quantity) %></td></tr>
+    <% }) %>
+    </tbody>
+    <tfoot><tr><th colspan="5">Total</th><th class="num"><%= formatMoney(order.total_cents) %></th></tr></tfoot>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Historial</h2>
+  <ul class="timeline">
+    <% events.forEach(e => { %>
+      <li><span class="muted small"><%= formatDate(e.created_at) %></span> <%- include('../partials/status', { status: e.status }) %>
+        <span class="small">por <%= e.role === 'admin' ? e.username : e.role === 'family' ? 'la familia' : '—' %></span>
+        <% if (e.note) { %><span class="small muted"> · <%= e.note %></span><% } %></li>
+    <% }) %>
+  </ul>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,30 @@
+<%- include('../partials/header') %>
+<h1>Comisión (administradores)</h1>
+<div class="card table-wrap">
+  <table class="table">
+    <thead><tr><th>Usuario</th><th>Nombre</th><th>Correo</th><th></th></tr></thead>
+    <tbody>
+    <% list.forEach(a => { %>
+      <tr><td><strong><%= a.username %></strong></td><td><%= a.player_name %></td><td><%= a.email || '—' %></td>
+        <td><% if (a.id !== user.id) { %>
+          <form method="post" action="/admin/admins/<%= a.id %>/eliminar" data-confirm="¿Eliminar a <%= a.username %>?">
+            <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn small danger ghost">Eliminar</button>
+          </form><% } %></td></tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+<form method="post" action="/admin/admins" class="card form">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <h2>Añadir miembro de la comisión</h2>
+  <div class="row wrap-row">
+    <label class="grow">Usuario <input name="username" required pattern="[a-zA-Z0-9._\-]{3,30}"></label>
+    <label class="grow">Nombre <input name="name"></label>
+  </div>
+  <div class="row wrap-row">
+    <label class="grow">Correo <input type="email" name="email"></label>
+    <label class="grow">Contraseña (mín. 10) <input type="password" name="password" minlength="10" required autocomplete="new-password"></label>
+  </div>
+  <button class="btn primary">Crear</button>
+</form>
+<%- include('../partials/footer') %>

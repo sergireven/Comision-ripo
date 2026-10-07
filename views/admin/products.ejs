@@ -1,0 +1,25 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <h1>Productos</h1>
+  <div class="row"><a class="btn ghost" href="/admin/categorias">Categorías</a><a class="btn primary" href="/admin/productos/nuevo">+ Nuevo producto</a></div>
+</div>
+<div class="card table-wrap">
+  <table class="table">
+    <thead><tr><th></th><th>Producto</th><th>Categoría</th><th class="num">Precio</th><th>Tallas</th><th>Nombre+dorsal</th><th>Visible</th></tr></thead>
+    <tbody>
+    <% list.forEach(p => { %>
+      <tr class="<%= p.active ? '' : 'unavailable' %>">
+        <td><% if (p.image) { %><img class="thumb" src="/uploads/<%= p.image %>" alt=""><% } %></td>
+        <td><a href="/admin/productos/<%= p.id %>"><strong><%= p.name %></strong></a></td>
+        <td><%= p.category || '—' %></td>
+        <td class="num"><%= formatMoney(p.price_cents) %></td>
+        <td class="small"><%= p.sizes || '—' %></td>
+        <td><%= p.personalization ? 'Sí' : 'No' %></td>
+        <td><%= p.active ? 'Sí' : 'Oculto' %></td>
+      </tr>
+    <% }) %>
+    <% if (!list.length) { %><tr><td colspan="7" class="center muted">Aún no hay productos. Crea el primero.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/footer') %>

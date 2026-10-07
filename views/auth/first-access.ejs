@@ -1,0 +1,32 @@
+<%- include('../partials/header') %>
+<section class="auth">
+  <div class="card narrow">
+    <h1>Primer acceso</h1>
+    <ol class="steps"><li class="<%= step === 1 ? 'current' : 'done' %>">DNI</li><li class="<%= step === 2 ? 'current' : '' %>">Correo</li><li>Contraseña</li></ol>
+    <% if (typeof error !== 'undefined') { %><div class="flash error"><%= error %></div><% } %>
+    <form method="post" action="/primer-acceso" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <% if (step === 1) { %>
+        <p>Introduce el DNI de tu hijo/a tal como lo tiene registrado el club.</p>
+        <label>DNI del jugador/a
+          <input name="dni" value="<%= dni %>" autocapitalize="characters" required autofocus>
+        </label>
+        <button class="btn primary block">Continuar</button>
+      <% } else { %>
+        <input type="hidden" name="dni" value="<%= dni %>">
+        <input type="hidden" name="step" value="2">
+        <p>Cuenta de <strong><%= playerName %></strong> (<%= dni %>).</p>
+        <p class="muted">Indica el correo de contacto. Allí recibirás la contraseña y los avisos de tus pedidos.</p>
+        <label>Correo electrónico
+          <input type="email" name="email" value="<%= typeof email !== 'undefined' ? email : '' %>" autocomplete="email" required autofocus>
+        </label>
+        <label>Repite el correo
+          <input type="email" name="email2" autocomplete="off" required>
+        </label>
+        <button class="btn primary block">Activar cuenta y generar contraseña</button>
+      <% } %>
+    </form>
+    <p class="center"><a href="/login">Volver a entrar</a></p>
+  </div>
+</section>
+<%- include('../partials/footer') %>
