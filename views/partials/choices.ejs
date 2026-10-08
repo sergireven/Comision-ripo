@@ -10,7 +10,7 @@
   </label>
 <% } %>
 <% if (options.length > 1) { %>
-  <label><%= t('Opción') %>
+  <label><%= t('Modelo') %>
     <select name="option_value<%= suffix %>" required>
       <option value=""><%= t('Elige…') %></option>
       <% options.forEach(o => { %><option><%= o %></option><% }) %>
@@ -28,7 +28,7 @@
 <% } %>
 <% if (p.personalization) { %>
   <div class="row">
-    <label class="grow"><%= t('Nombre') %> <input name="custom_name<%= suffix %>" maxlength="30" value="<%= user.player_name ? user.player_name.split(' ')[0] : '' %>" required></label>
-    <label class="w-dorsal"><%= t('Número') %> <input name="custom_number<%= suffix %>" inputmode="numeric" pattern="\d{1,3}" maxlength="3" value="<%= user.player_number || '' %>" required></label>
+    <label class="grow"><%= t('Nombre jugador') %> <input name="custom_name<%= suffix %>" maxlength="30" value="<%= user.player_name ? user.player_name.split(' ')[0] : '' %>" required></label>
+    <label class="w-dorsal"><%= t('Dorsal') %> <input name="custom_number<%= suffix %>" inputmode="numeric" pattern="\d{1,3}" maxlength="3" value="<%= user.player_number || '' %>" required></label>
   </div>
 <% } %>

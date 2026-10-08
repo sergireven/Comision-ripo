@@ -80,7 +80,7 @@
           <% if (colors.length) { %><p class="muted small"><%= t(colors.length > 1 ? 'Colores' : 'Color') %>: <%= colors.join(', ') %></p><% } %>
           <% if (sizes.length) { %><p class="muted small"><%= t('Tallas') %>: <%= sizes.join(', ') %>
             <% if (p.size_guide) { %>· <a href="/uploads/<%= p.size_guide %>" target="_blank" rel="noopener"><%= t('Guía de tallas') %></a><% } %></p><% } %>
-          <% if (p.personalization) { %><p class="hint"><%= t('Se personaliza con nombre y número.') %></p><% } %>
+          <% if (p.personalization) { %><p class="hint"><%= t('Se personaliza con nombre jugador y dorsal.') %></p><% } %>
           <% if (!user) { %><a class="btn primary block product-cta" href="/login"><%= t('Entra para comprar') %></a><% } %>
         <% } else { %>
         <form method="post" action="/carrito/anadir" class="form compact">

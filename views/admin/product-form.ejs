@@ -23,12 +23,12 @@
       <label><%= t('Colores (separados por comas, la familia elige uno)') %>
         <input name="colors" value="<%= product.colors || '' %>" placeholder="<%= t('Ej.: Amarillo, Azul marino, Negro') %>">
       </label>
-      <label><%= t('Opciones (separadas por comas, la familia elige una)') %>
+      <label><%= t('Modelos (separados por comas, la familia elige uno)') %>
         <input name="options" value="<%= product.options || '' %>" placeholder="<%= t('Ej.: Escudo, Pollito') %>">
       </label>
       <label><%= t('Descripción (castellano)') %> <textarea name="description" rows="2" maxlength="1000"><%= product.description || '' %></textarea></label>
       <label><%= t('Descripción (catalán)') %> <textarea name="description_ca" rows="2" maxlength="1000" placeholder="<%= t('Opcional') %>"><%= product.description_ca || '' %></textarea></label>
-      <label class="check"><input type="checkbox" name="personalization" value="1" <%= product.personalization ? 'checked' : '' %>> <%= t('Requiere nombre + número del jugador/a') %></label>
+      <label class="check"><input type="checkbox" name="personalization" value="1" <%= product.personalization ? 'checked' : '' %>> <%= t('Requiere nombre jugador + dorsal') %></label>
       <label class="check"><input type="checkbox" name="active" value="1" <%= product.active ? 'checked' : '' %>> <%= t('Visible en la tienda') %></label>
     </div>
     <div>

@@ -67,7 +67,7 @@
 
   <div class="card checkout">
     <div>
-      <p><strong><%= t('Revisa que todo sea correcto (colores, tallas, nombre y número) antes de confirmar.') %></strong></p>
+      <p><strong><%= t('Revisa que todo sea correcto (colores, modelos, tallas, nombre jugador y dorsal) antes de confirmar.') %></strong></p>
       <p class="muted small"><%= t('El pago se hace en mano a la comisión. Hasta que no esté pagado podrás cancelar el pedido.') %></p>
     </div>
     <form method="post" action="/carrito/confirmar" data-confirm="<%= t('¿Confirmas el pedido por {amount}?', { amount: formatMoney(cart.total) }) %>">

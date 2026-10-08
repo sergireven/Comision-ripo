@@ -1,7 +1,7 @@
-<%# Detalles de una línea de pedido/carrito: color, opción, talla, nombre y número %>
+<%# Detalles de una línea de pedido/carrito: color, modelo, talla, nombre jugador y dorsal %>
 <% const bits = [];
    if (it.color) bits.push(it.color);
    if (it.option_value) bits.push(it.option_value);
    if (it.size) bits.push(t('Talla') + ' ' + it.size); %>
 <% if (bits.length) { %><%= bits.join(' · ') %><br><% } %>
-<% if (it.custom_name) { %>«<%= it.custom_name %>» · <%= t('número') %> <%= it.custom_number %><% } %>
+<% if (it.custom_name) { %>«<%= it.custom_name %>» · <%= t('dorsal') %> <%= it.custom_number %><% } %>

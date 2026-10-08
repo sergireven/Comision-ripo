@@ -99,7 +99,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     const fd = (iso) => formatDate(iso, true, req.lang);
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const header = ['Pedido', 'Estado', 'Fecha', 'Pagado', 'Cobrado por', 'Entregado', 'Jugador/a', 'DNI', 'Correo', 'Tipo', 'Producto',
-      'Color', 'Opción', 'Talla', 'Nombre', 'Número', 'Cantidad', 'Precio unidad', 'Importe'].map((h) => t(h));
+      'Color', 'Modelo', 'Talla', 'Nombre jugador', 'Dorsal', 'Cantidad', 'Precio unidad', 'Importe'].map((h) => t(h));
     const kindLabel = { product: 'Artículo', pack: 'Descuento', gift: 'Regalo' };
     const lines = rows.map((r) => [orderCode(r.id), t(STATUS[r.status].label), fd(r.created_at), fd(r.paid_at), r.collector,
       fd(r.delivered_at), r.player_name, r.dni, r.email, t(kindLabel[r.kind] || 'Artículo'), r.product_name, r.color, r.option_value,

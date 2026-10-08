@@ -109,8 +109,8 @@ function createMailer(db, { fetchImpl } = {}) {
         it.color,
         it.option_value,
         it.size && t('talla {size}', { size: it.size }),
-        it.custom_name && t('nombre «{name}»', { name: it.custom_name }),
-        it.custom_number && t('número {number}', { number: it.custom_number }),
+        it.custom_name && t('nombre jugador «{name}»', { name: it.custom_name }),
+        it.custom_number && t('dorsal {number}', { number: it.custom_number }),
       ].filter(Boolean).join(', ');
       return `  · ${it.quantity} x ${name}${extras ? ` (${extras})` : ''} — ${formatMoney(it.unit_price_cents * it.quantity)}`;
     }).join('\n');

@@ -89,7 +89,7 @@ function createOrderService(db) {
     };
     const color = pick(parseSizes(product.colors), input.color, 'Elige un color.');
     if (color.error) return color;
-    const option = pick(parseSizes(product.options), input.option_value, 'Elige una opción.');
+    const option = pick(parseSizes(product.options), input.option_value, 'Elige un modelo.');
     if (option.error) return option;
     let customName = null;
     let customNumber = null;

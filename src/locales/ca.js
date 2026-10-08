@@ -569,4 +569,16 @@ module.exports = {
   // --- Correo ---
   "El envío de correos no está configurado. Usa «Reiniciar acceso» para que la familia haga el «Primer acceso» con el DNI.": "L'enviament de correus no està configurat. Fes servir «Reiniciar accés» perquè la família faci el «Primer accés» amb el DNI.",
   "El envío de correos no está configurado: la familia tendrá que hacer el «Primer acceso» con el DNI (la contraseña le sale en pantalla).": "L'enviament de correus no està configurat: la família haurà de fer el «Primer accés» amb el DNI (la contrasenya li surt en pantalla).",
+
+  // --- Nombre jugador, dorsal y modelo ---
+  "Nombre jugador": "Nom jugador",
+  "Modelo": "Model",
+  "Elige un modelo.": "Tria un model.",
+  "Requiere nombre jugador + dorsal": "Requereix nom jugador + dorsal",
+  "Modelos (separados por comas, la familia elige uno)": "Models (separats per comes, la família en tria un)",
+  "Nombre jugador + dorsal": "Nom jugador + dorsal",
+  "Personalizaciones (nombre jugador + dorsal)": "Personalitzacions (nom jugador + dorsal)",
+  "Revisa que todo sea correcto (colores, modelos, tallas, nombre jugador y dorsal) antes de confirmar.": "Revisa que tot sigui correcte (colors, models, talles, nom jugador i dorsal) abans de confirmar.",
+  "Se personaliza con nombre jugador y dorsal.": "Es personalitza amb nom jugador i dorsal.",
+  "nombre jugador «{name}»": "nom jugador «{name}»",
 };
