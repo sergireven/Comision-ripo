@@ -1,0 +1,64 @@
+<%- include('../partials/header') %>
+<section class="hero">
+  <img src="/static/img/escut.gif" alt="<%= clubName %>" width="112" height="112" class="hero-logo">
+  <div class="hero-text">
+    <p class="hero-kicker"><%= clubName %></p>
+    <h1><%= t('Comisión de eventos') %></h1>
+    <div class="hero-intro"><%- paragraphs(loc(site, 'home_intro')) %></div>
+    <div class="hero-actions">
+      <a class="btn primary big" href="/tienda"><%= t('Ver la tienda') %></a>
+      <a class="btn big hero-secondary" href="/qui-som"><%= t('Quiénes somos') %></a>
+    </div>
+  </div>
+</section>
+
+<% if (shop.open) { %>
+<section class="card shop-callout open">
+  <div>
+    <p class="callout-label"><span class="dot"></span><%= t('Pedidos abiertos') %></p>
+    <h2><%= shop.current.name || t('Tienda') %></h2>
+    <p class="muted"><%= t('Cierra el {date}', { date: formatDate(shop.current.ends_at) }) %> — <%= t('quedan') %> <strong data-countdown="<%= shop.current.ends_at %>" data-lang="<%= lang %>">…</strong></p>
+  </div>
+  <a class="btn primary" href="/tienda"><%= t('Hacer un pedido') %></a>
+</section>
+<% } else if (shop.next) { %>
+<section class="card shop-callout">
+  <div>
+    <p class="callout-label"><%= t('Próximamente en la tienda') %></p>
+    <h2><%= shop.next.name %></h2>
+    <p class="muted"><%= t('Abre el {date}', { date: formatDate(shop.next.starts_at) }) %> — <%= t('en') %> <strong data-countdown="<%= shop.next.starts_at %>" data-lang="<%= lang %>">…</strong></p>
+  </div>
+  <a class="btn" href="/tienda"><%= t('Ver el catálogo') %></a>
+</section>
+<% } %>
+
+<% if (products.length) { %>
+<section class="home-section">
+  <div class="section-head">
+    <h2><%= t('De la tienda') %></h2>
+    <a href="/tienda"><%= t('Ver todos los productos') %> →</a>
+  </div>
+  <div class="mini-products">
+    <% products.forEach(p => { %>
+      <a class="mini-product card" href="/tienda">
+        <div class="product-img">
+          <% if (p.image) { %><img src="/uploads/<%= p.image %>" alt="" loading="lazy"><% } else { %><img src="/static/img/escut.gif" alt="" class="placeholder"><% } %>
+        </div>
+        <div class="mini-body">
+          <span class="mini-name"><%= loc(p, 'name') %></span>
+          <span class="mini-price"><%= formatMoney(p.price_cents) %></span>
+        </div>
+      </a>
+    <% }) %>
+  </div>
+</section>
+<% } %>
+
+<section class="card about-teaser">
+  <div>
+    <h2><%= t('Quiénes somos') %></h2>
+    <p class="muted"><%= t('Conoce a la comisión y cómo contactar con nosotros.') %></p>
+  </div>
+  <a class="btn" href="/qui-som"><%= t('Más información') %></a>
+</section>
+<%- include('../partials/footer') %>

@@ -1,5 +1,17 @@
 </main>
-<footer class="footer"><div class="wrap"><%= clubName %> · <%= t('Comisión de marxandatge') %></div></footer>
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div>
+      <strong><%= t('Comisión de eventos') %> · <%= clubName %></strong>
+      <% if (site.contact_place) { %><div><%= site.contact_place %></div><% } %>
+    </div>
+    <div class="footer-links">
+      <% if (site.contact_email) { %><a href="mailto:<%= site.contact_email %>"><%= site.contact_email %></a><% } %>
+      <% if (instagramUrl(site.contact_instagram)) { %><a href="<%= instagramUrl(site.contact_instagram) %>" rel="noopener" target="_blank">Instagram</a><% } %>
+      <a href="/qui-som"><%= t('Quiénes somos') %></a>
+    </div>
+  </div>
+</footer>
 <script src="/static/js/app.js"></script>
 </body>
 </html>

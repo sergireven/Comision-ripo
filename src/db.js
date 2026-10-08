@@ -116,6 +116,12 @@ CREATE TABLE IF NOT EXISTS email_log (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+-- Textos editables de la web pública (portada, «Qui som», contacto).
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT
+);
+
 CREATE TABLE IF NOT EXISTS sessions (
   sid     TEXT PRIMARY KEY,
   data    TEXT NOT NULL,

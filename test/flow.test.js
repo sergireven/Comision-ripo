@@ -81,7 +81,7 @@ test('flujo completo: primer acceso, pedido, pago y entrega con QR', async () =>
 
   // Admin: producto personalizado y otro con tallas
   res = await login(adm, 'comision', 'admin-password');
-  assert.strictEqual(res.headers.location, '/');
+  assert.strictEqual(res.headers.location, '/admin');
   _csrf = await csrfOf(adm, '/admin/productos/nuevo');
   res = await adm.post(`/admin/productos?_csrf=${_csrf}`)
     .field('name', 'Botellero').field('price', '12,50').field('personalization', '1').field('active', '1')
@@ -325,4 +325,48 @@ test('alta por la comisión con correo: la cuenta queda activada y recibe la con
   const denied = await fam.post('/admin/familias').type('form').send({ _csrf: fc, dni: '11111111H', player_name: 'Intruso' });
   assert.strictEqual(denied.status, 403);
   assert.strictEqual(db.prepare("SELECT COUNT(*) n FROM users WHERE dni = '11111111H'").get().n, 0);
+});
+
+test('web pública: portada, qui som y catálogo sin iniciar sesión; textos editables', async () => {
+  const { db, app } = setup();
+  db.prepare("INSERT INTO products (name, name_ca, price_cents, sizes) VALUES ('Sudadera', 'Dessuadora', 3000, 'S,M')").run();
+  const anon = request.agent(app);
+
+  let res = await anon.get('/').set('Cookie', 'lang=ca');
+  assert.strictEqual(res.status, 200);
+  assert.match(res.text, /Comissió d&#39;esdeveniments/);
+  assert.match(res.text, /Dessuadora/);
+
+  res = await anon.get('/qui-som');
+  assert.strictEqual(res.status, 200);
+
+  res = await anon.get('/tienda');
+  assert.strictEqual(res.status, 200);
+  assert.match(res.text, /href="\/login"/);
+  assert.doesNotMatch(res.text, /action="\/carrito\/anadir"/, 'sin sesión no se puede añadir al carrito');
+  res = await anon.get('/carrito');
+  assert.strictEqual(res.headers.location, '/login');
+
+  // La comisión cambia los textos; se escapan al mostrarlos.
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  const _csrf = await csrfOf(adm, '/admin/web');
+  res = await adm.post('/admin/web').type('form').send({
+    _csrf, home_intro: 'Hola <b>familias</b>', home_intro_ca: '', about: 'Somos la comisión.\n\nSegundo párrafo.', about_ca: '',
+    contact_email: 'mal', contact_instagram: '',
+  });
+  assert.strictEqual(res.status, 400);
+  assert.match(res.text, /no és vàlid/);
+  assert.match(res.text, /Hola &lt;b&gt;familias/, 'conserva lo escrito');
+  res = await adm.post('/admin/web').type('form').send({
+    _csrf, home_intro: 'Hola <b>familias</b>', home_intro_ca: '', about: 'Somos la comisión.\n\nSegundo párrafo.', about_ca: '',
+    contact_email: 'comissio@example.com', contact_instagram: '@hcripollet',
+  });
+  assert.strictEqual(res.status, 302);
+  res = await anon.get('/').set('Cookie', 'lang=ca');
+  assert.match(res.text, /Hola &lt;b&gt;familias&lt;\/b&gt;/, 'sin texto en catalán se muestra el castellano, escapado');
+  res = await anon.get('/qui-som');
+  assert.match(res.text, /<p>Segundo párrafo\.<\/p>/);
+  assert.match(res.text, /mailto:comissio@example\.com/);
+  assert.match(res.text, /https:\/\/www\.instagram\.com\/hcripollet\//);
 });

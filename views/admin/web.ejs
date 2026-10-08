@@ -1,0 +1,40 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <h1><%= t('Textos de la web') %></h1>
+  <a class="btn small" href="/" target="_blank"><%= t('Ver la web') %></a>
+</div>
+<p class="muted"><%= t('Estos textos se muestran en la parte pública de la web. Deja una línea en blanco para separar párrafos. Si el texto en catalán está vacío, se muestra el castellano.') %></p>
+
+<form method="post" action="/admin/web" class="form">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+
+  <section class="card">
+    <h2><%= t('Portada: texto de bienvenida') %></h2>
+    <div class="grid two">
+      <label><%= t('Castellano') %> <textarea name="home_intro" rows="5" required><%= values.home_intro %></textarea></label>
+      <label><%= t('Catalán') %> <textarea name="home_intro_ca" rows="5"><%= values.home_intro_ca %></textarea></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><%= t('Quiénes somos') %></h2>
+    <div class="grid two">
+      <label><%= t('Castellano') %> <textarea name="about" rows="10" required><%= values.about %></textarea></label>
+      <label><%= t('Catalán') %> <textarea name="about_ca" rows="10"><%= values.about_ca %></textarea></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><%= t('Contacto') %></h2>
+    <p class="hint"><%= t('Todos los campos son opcionales. Se muestran en «Quiénes somos» y al pie de la web.') %></p>
+    <div class="grid two">
+      <label><%= t('Correo') %> <input type="email" name="contact_email" value="<%= values.contact_email || '' %>" maxlength="200"></label>
+      <label><%= t('Teléfono') %> <input name="contact_phone" value="<%= values.contact_phone || '' %>" maxlength="200"></label>
+      <label><%= t('Dónde encontrarnos') %> <input name="contact_place" value="<%= values.contact_place || '' %>" maxlength="200" placeholder="<%= t('Ej.: Pavelló Municipal de Ripollet') %>"></label>
+      <label>Instagram <input name="contact_instagram" value="<%= values.contact_instagram || '' %>" maxlength="200" placeholder="@hcripollet"></label>
+    </div>
+  </section>
+
+  <button class="btn primary big"><%= t('Guardar') %></button>
+</form>
+<%- include('../partials/footer') %>

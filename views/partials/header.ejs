@@ -3,46 +3,65 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><%= typeof title !== 'undefined' ? t(title) + ' · ' : '' %><%= clubName %> · <%= t('Botiga') %></title>
+  <title><%= typeof title !== 'undefined' ? t(title) + ' · ' : '' %><%= t('Comisión de eventos') %> · <%= clubName %></title>
   <link rel="stylesheet" href="/static/css/style.css">
-  <link rel="icon" href="/static/img/logo.svg">
+  <link rel="icon" href="/static/img/escut.gif">
 </head>
-<body class="<%= user && user.role === 'admin' ? 'is-admin' : '' %>">
+<% const isAdmin = user && user.role === 'admin';
+   const isFamily = user && user.role === 'family';
+   const on = (p) => path === p || path.startsWith(p + '/') ? 'active' : '';
+   const shopPage = ['/tienda', '/carrito', '/pedidos'].some((p) => path.startsWith(p)) || (isAdmin && path.startsWith('/admin')); %>
+<body class="<%= isAdmin ? 'is-admin' : '' %>">
 <header class="topbar">
   <div class="wrap topbar-inner">
     <a class="brand" href="/">
-      <img src="/static/img/logo.svg" alt="" width="36" height="36">
-      <span><strong><%= clubName %></strong><small><%= t('Botiga del club') %></small></span>
+      <img src="/static/img/escut.gif" alt="" width="44" height="44" class="brand-logo">
+      <span><strong><%= t('Comisión de eventos') %></strong><small><%= clubName %></small></span>
     </a>
     <div class="lang-switch" aria-label="<%= t('Idioma') %>">
       <a href="/idioma/ca" class="<%= lang === 'ca' ? 'active' : '' %>" hreflang="ca" lang="ca">CA</a>
       <a href="/idioma/es" class="<%= lang === 'es' ? 'active' : '' %>" hreflang="es" lang="es">ES</a>
     </div>
-    <% if (user) { %>
     <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="<%= t('Menú') %>">
     <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span></label>
     <nav class="nav">
-      <% if (user.role === 'family') { %>
-        <a href="/tienda" class="<%= path.startsWith('/tienda') ? 'active' : '' %>"><%= t('Tienda') %></a>
-        <a href="/carrito" class="<%= path.startsWith('/carrito') ? 'active' : '' %>"><%= t('Carrito') %><% if (cartCount) { %> <span class="pill"><%= cartCount %></span><% } %></a>
-        <a href="/pedidos" class="<%= path.startsWith('/pedidos') ? 'active' : '' %>"><%= t('Mis pedidos') %></a>
+      <a href="/" class="<%= path === '/' ? 'active' : '' %>"><%= t('Inicio') %></a>
+      <a href="/tienda" class="<%= on('/tienda') %>"><%= t('Tienda') %></a>
+      <a href="/qui-som" class="<%= on('/qui-som') %>"><%= t('Quiénes somos') %></a>
+      <% if (!user) { %>
+        <a href="/login" class="nav-cta <%= on('/login') %>"><%= t('Entrar') %></a>
       <% } else { %>
-        <a href="/admin" class="<%= path === '/admin' || path === '/admin/' ? 'active' : '' %>"><%= t('Panel') %></a>
-        <a href="/admin/escanear" class="<%= path.startsWith('/admin/escanear') || path.startsWith('/admin/qr') ? 'active' : '' %>"><%= t('Escanear') %></a>
-        <a href="/admin/pedidos" class="<%= path.startsWith('/admin/pedidos') ? 'active' : '' %>"><%= t('Pedidos') %></a>
-        <a href="/admin/resumen" class="<%= path.startsWith('/admin/resumen') ? 'active' : '' %>"><%= t('Resumen') %></a>
-        <a href="/admin/productos" class="<%= path.startsWith('/admin/productos') || path.startsWith('/admin/categorias') ? 'active' : '' %>"><%= t('Productos') %></a>
-        <a href="/admin/periodos" class="<%= path.startsWith('/admin/periodos') ? 'active' : '' %>"><%= t('Periodos') %></a>
-        <a href="/admin/familias" class="<%= path.startsWith('/admin/familias') ? 'active' : '' %>"><%= t('Familias') %></a>
+        <span class="nav-sep" aria-hidden="true"></span>
+        <% if (isFamily) { %>
+          <a href="/carrito" class="<%= on('/carrito') %>"><%= t('Carrito') %><% if (cartCount) { %> <span class="pill"><%= cartCount %></span><% } %></a>
+          <a href="/pedidos" class="<%= on('/pedidos') %>"><%= t('Mis pedidos') %></a>
+          <a href="/cuenta" class="<%= on('/cuenta') %>"><%= t('Mi cuenta') %></a>
+        <% } else { %>
+          <a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>"><%= t('Panel') %></a>
+        <% } %>
+        <form method="post" action="/logout" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike"><%= t('Salir') %></button></form>
       <% } %>
-      <a href="/cuenta" class="<%= path.startsWith('/cuenta') ? 'active' : '' %>"><%= t('Mi cuenta') %></a>
-      <form method="post" action="/logout" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike"><%= t('Salir') %></button></form>
     </nav>
-    <% } %>
   </div>
 </header>
 
-<% if (user) { %>
+<% if (isAdmin) { %>
+<nav class="adminbar" aria-label="<%= t('Panel de la comisión') %>">
+  <div class="wrap adminbar-inner">
+    <a href="/admin" class="<%= path === '/admin' || path === '/admin/' ? 'active' : '' %>"><%= t('Panel') %></a>
+    <a href="/admin/escanear" class="<%= path.startsWith('/admin/escanear') || path.startsWith('/admin/qr') ? 'active' : '' %>"><%= t('Escanear') %></a>
+    <a href="/admin/pedidos" class="<%= on('/admin/pedidos') %>"><%= t('Pedidos') %></a>
+    <a href="/admin/resumen" class="<%= on('/admin/resumen') %>"><%= t('Resumen') %></a>
+    <a href="/admin/productos" class="<%= path.startsWith('/admin/productos') || path.startsWith('/admin/categorias') ? 'active' : '' %>"><%= t('Productos') %></a>
+    <a href="/admin/periodos" class="<%= on('/admin/periodos') %>"><%= t('Periodos') %></a>
+    <a href="/admin/familias" class="<%= on('/admin/familias') %>"><%= t('Familias') %></a>
+    <a href="/admin/web" class="<%= on('/admin/web') %>"><%= t('Textos de la web') %></a>
+    <a href="/cuenta" class="<%= on('/cuenta') %>"><%= t('Mi cuenta') %></a>
+  </div>
+</nav>
+<% } %>
+
+<% if (shopPage) { %>
 <div class="shopbar <%= shop.open ? 'open' : 'closed' %>">
   <div class="wrap">
     <span class="dot"></span>

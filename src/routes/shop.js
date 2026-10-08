@@ -7,7 +7,9 @@ const { localized } = require('../i18n');
 module.exports = function shopRoutes({ db, mailer, orders }) {
   const router = express.Router();
 
-  router.get('/tienda', requireFamily, (req, res) => {
+  // El catálogo es público; para añadir al carrito hay que entrar como familia.
+  router.get('/tienda', (req, res) => {
+    if (!req.user) req.session.returnTo = req.originalUrl;
     const categories = db.prepare(`SELECT c.* FROM categories c
       WHERE EXISTS (SELECT 1 FROM products p WHERE p.category_id = c.id AND p.active = 1)
       ORDER BY c.sort_order, c.name`).all();

@@ -6,6 +6,7 @@ const { SqliteStore } = require('./session-store');
 const { createMailer } = require('./mailer');
 const { shopStatus, createOrderService } = require('./services');
 const util = require('./util');
+const { getSettings } = require('./settings');
 const { LANGS, translate, detectLang, localized } = require('./i18n');
 
 function setLocale(req, res, lang) {
@@ -41,7 +42,7 @@ function createApp(db, options = {}) {
   app.use((req, res, next) => {
     // Valores por defecto para poder pintar páginas de error aunque falle algo antes de cargar la sesión.
     Object.assign(res.locals, util, {
-      user: null, csrf: '', path: req.path, flash: null, cartCount: 0, shop: { open: false },
+      user: null, csrf: '', path: req.path, flash: null, cartCount: 0, shop: { open: false }, site: {},
       clubName: process.env.CLUB_NAME || 'Club Hoquei Ripollet',
     });
     setLocale(req, res, detectLang(req));
@@ -82,6 +83,7 @@ function createApp(db, options = {}) {
       csrf: req.session.csrf,
       path: req.path,
       shop: shopStatus(db),
+      site: getSettings(db),
       cartCount: req.user?.role === 'family' ? cartCount.get(req.user.id).n : 0,
       flash: req.session.flash || null,
       clubName: process.env.CLUB_NAME || 'Club Hoquei Ripollet',
@@ -116,14 +118,10 @@ function createApp(db, options = {}) {
     res.redirect(back);
   });
 
+  app.use(require('./routes/site')(ctx));
   app.use(require('./routes/auth')(ctx));
   app.use(require('./routes/shop')(ctx));
   app.use('/admin', require('./routes/admin')(ctx));
-
-  app.get('/', (req, res) => {
-    if (!req.user) return res.redirect('/login');
-    res.redirect(req.user.role === 'admin' ? '/admin' : '/tienda');
-  });
 
   app.use((req, res) => res.status(404).render('error', { title: 'No encontrado', message: 'La página que buscas no existe.' }));
   // eslint-disable-next-line no-unused-vars

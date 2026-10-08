@@ -12,6 +12,7 @@
     <noscript><button class="btn"><%= t('Ver') %></button></noscript>
   </form>
 </div>
+<% if (!user) { %><p class="muted page-intro"><%= t('Las familias del club pueden hacer pedidos entrando con el DNI del jugador/a.') %> <a href="/login"><%= t('Entrar') %></a></p><% } %>
 
 <% if (!products.length) { %>
   <div class="card center muted"><%= t('Todavía no hay productos en esta sección.') %></div>
@@ -21,12 +22,17 @@
 <% products.forEach(p => { const sizes = parseSizes(p.sizes); %>
   <article class="product card">
     <div class="product-img">
-      <% if (p.image) { %><img src="/uploads/<%= p.image %>" alt="<%= loc(p, 'name') %>" loading="lazy"><% } else { %><img src="/static/img/logo.svg" alt="" class="placeholder"><% } %>
+      <% if (p.image) { %><img src="/uploads/<%= p.image %>" alt="<%= loc(p, 'name') %>" loading="lazy"><% } else { %><img src="/static/img/escut.gif" alt="" class="placeholder"><% } %>
     </div>
     <div class="product-body">
       <h2><%= loc(p, 'name') %></h2>
       <% if (loc(p, 'description')) { %><p class="muted small"><%= loc(p, 'description') %></p><% } %>
       <div class="price"><%= formatMoney(p.price_cents) %></div>
+      <% if (!user || user.role !== 'family') { %>
+        <% if (sizes.length) { %><p class="muted small"><%= t('Tallas') %>: <%= sizes.join(', ') %></p><% } %>
+        <% if (p.personalization) { %><p class="hint"><%= t('Se personaliza con nombre y dorsal.') %></p><% } %>
+        <% if (!user) { %><a class="btn primary block product-cta" href="/login"><%= t('Entra para comprar') %></a><% } %>
+      <% } else { %>
       <form method="post" action="/carrito/anadir" class="form compact">
         <input type="hidden" name="_csrf" value="<%= csrf %>">
         <input type="hidden" name="product_id" value="<%= p.id %>">
@@ -50,6 +56,7 @@
           <button class="btn primary grow" <%= shop.open ? '' : 'disabled' %>><%= t('Añadir al carrito') %></button>
         </div>
       </form>
+      <% } %>
     </div>
   </article>
 <% }) %>

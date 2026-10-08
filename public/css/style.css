@@ -30,13 +30,23 @@ main.wrap { padding-top: 16px; padding-bottom: 40px; min-height: 70vh; }
 .brand { display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; }
 .brand span { display: flex; flex-direction: column; line-height: 1.15; }
 .brand small { opacity: .8; font-size: .8rem; }
+.brand-logo { background: #fff; border-radius: 8px; padding: 2px; }
 .nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .nav a, .nav .linklike { color: #fff; text-decoration: none; padding: 8px 10px; border-radius: 8px; font-size: .95rem; }
 .nav a:hover, .nav a.active { background: rgba(255,255,255,.15); }
 .nav .pill { background: var(--accent); color: #000; border-radius: 999px; padding: 0 7px; font-size: .8rem; font-weight: 700; }
 .linklike { background: none; border: 0; cursor: pointer; font: inherit; }
 .topbar .nav-toggle, .nav-burger { display: none; }
-.is-admin .topbar { background: #1d2939; }
+.nav .nav-cta { background: #fff; color: var(--brand); font-weight: 700; margin-left: 6px; }
+.nav .nav-cta:hover, .nav .nav-cta.active { background: #e8eefb; }
+.nav-sep { width: 1px; height: 22px; background: rgba(255,255,255,.3); margin: 0 6px; }
+
+/* Barra del panel de la comisión (solo administradores) */
+.adminbar { background: #1d2939; }
+.adminbar-inner { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin; }
+.adminbar a { color: #d0d5dd; text-decoration: none; font-size: .88rem; padding: 9px 10px; white-space: nowrap; border-bottom: 2px solid transparent; }
+.adminbar a:hover { color: #fff; }
+.adminbar a.active { color: #fff; border-bottom-color: var(--accent); }
 
 .shopbar { font-size: .92rem; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .shopbar.open { background: var(--ok-bg); color: var(--ok); }
@@ -215,3 +225,72 @@ pre.mail { white-space: pre-wrap; font-size: .85rem; background: #f8f9fc; paddin
 .scanner video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .scan-frame { position: absolute; inset: 18%; border: 3px solid rgba(255,255,255,.85); border-radius: 14px; box-shadow: 0 0 0 999px rgba(0,0,0,.35); }
 hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+
+/* Web pública: portada */
+.hero { display: flex; align-items: center; gap: 28px; background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%); color: #fff; border-radius: var(--radius); padding: 32px; margin-bottom: 16px; }
+.hero-logo { flex: 0 0 auto; background: #fff; border-radius: 18px; padding: 8px; width: 112px; height: 112px; }
+.hero-kicker { margin: 0; font-size: .85rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+.hero h1 { font-size: 2.1rem; margin: .1rem 0 .6rem; line-height: 1.15; }
+.hero-intro p { margin: 0 0 .6rem; max-width: 62ch; opacity: .92; font-size: 1.05rem; }
+.hero-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.hero .btn.primary { background: var(--accent); border-color: var(--accent); color: #1b2233; }
+.hero .btn.primary:hover { background: #f0c419; }
+.hero .hero-secondary { background: transparent; color: #fff; border-color: rgba(255,255,255,.55); }
+.hero .hero-secondary:hover { border-color: #fff; }
+
+.shop-callout, .about-teaser { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.shop-callout h2, .about-teaser h2 { margin: 0 0 .2rem; }
+.shop-callout p, .about-teaser p { margin: 0; }
+.shop-callout.open { border-color: #b7e2c6; background: var(--ok-bg); }
+.callout-label { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 .2rem !important; }
+.shop-callout.open .callout-label { color: var(--ok); }
+.callout-label .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; }
+
+.home-section { margin: 24px 0; }
+.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.section-head h2 { margin: 0; font-size: 1.3rem; }
+.section-head a { font-weight: 600; text-decoration: none; }
+.mini-products { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.mini-product { padding: 0; margin: 0; overflow: hidden; text-decoration: none; color: inherit; display: flex; flex-direction: column; }
+.mini-product:hover { border-color: var(--brand); }
+.mini-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.mini-name { font-weight: 600; font-size: .95rem; }
+.mini-price { font-weight: 800; color: var(--brand); }
+
+/* Web pública: Qui som */
+.about-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; align-items: start; }
+.about-layout > .card { margin: 0; }
+.prose { font-size: 1.05rem; padding: 20px 24px; }
+.prose p { margin: 0 0 1rem; max-width: 68ch; }
+.prose p:last-child { margin-bottom: 0; }
+.contact-list { margin: 0; }
+.contact-list dt { color: var(--muted); font-size: .85rem; margin-top: 10px; }
+.contact-list dt:first-child { margin-top: 0; }
+.contact-list dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+
+.page-intro { margin: 0 0 14px; }
+.product-cta { margin-top: auto; }
+
+.footer-inner { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; text-align: left; }
+.footer-links { display: flex; gap: 16px; flex-wrap: wrap; }
+.footer-links a { color: var(--muted); }
+
+@media (max-width: 800px) {
+  .hero { flex-direction: column; align-items: flex-start; padding: 22px 18px; gap: 16px; }
+  .hero-logo { width: 84px; height: 84px; border-radius: 14px; }
+  .hero h1 { font-size: 1.7rem; }
+  .mini-products { grid-template-columns: 1fr 1fr; }
+  .about-layout { grid-template-columns: 1fr; }
+  .nav-sep { width: auto; height: 1px; margin: 4px 0; }
+  .nav .nav-cta { margin-left: 0; text-align: center; }
+  .footer-inner { flex-direction: column; align-items: flex-start; }
+}
+@media print { .adminbar { display: none !important; } }
+@media (max-width: 480px) {
+  .topbar-inner { gap: 6px; }
+  .brand { gap: 8px; min-width: 0; flex: 1 1 0; }
+  .brand-logo { width: 36px; height: 36px; }
+  .brand strong { font-size: .9rem; }
+  .brand small { font-size: .72rem; }
+  .lang-switch a { padding: 4px 5px; }
+}

@@ -110,8 +110,26 @@ function parseSizes(sizes) {
   return String(sizes || '').split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+function escapeHtml(text) {
+  return String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+/** Texto plano -> párrafos HTML escapados (línea en blanco = párrafo nuevo). */
+function paragraphs(text) {
+  return String(text || '').trim().split(/\r?\n\s*\r?\n/).filter((p) => p.trim())
+    .map((p) => `<p>${escapeHtml(p.trim()).replace(/\r?\n/g, '<br>')}</p>`).join('\n');
+}
+
+/** Enlace de Instagram a partir de «@usuario», «usuario» o una URL https. */
+function instagramUrl(value) {
+  const v = String(value || '').trim();
+  if (/^https:\/\/(www\.)?instagram\.com\/[\w.\-/?=&%]*$/i.test(v)) return v;
+  const handle = v.replace(/^@/, '');
+  return /^[\w.]{1,30}$/.test(handle) ? `https://www.instagram.com/${handle}/` : '';
+}
+
 module.exports = {
   TZ, randomString, generatePassword, generateToken, sha256, normalizeDni, isValidDni,
   isValidEmail, formatMoney, parseMoney, formatDate, toLocalInput, fromLocalInput, slugify,
-  STATUS, orderCode, parseSizes,
+  STATUS, orderCode, parseSizes, escapeHtml, paragraphs, instagramUrl,
 };

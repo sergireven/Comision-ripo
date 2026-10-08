@@ -1,0 +1,23 @@
+<%- include('../partials/header') %>
+<% const ig = instagramUrl(site.contact_instagram);
+   const hasContact = site.contact_email || site.contact_phone || site.contact_place || ig; %>
+<h1><%= t('Quiénes somos') %></h1>
+<div class="about-layout">
+  <article class="card prose">
+    <%- paragraphs(loc(site, 'about')) %>
+  </article>
+  <aside class="card contact-card">
+    <h2><%= t('Contacto') %></h2>
+    <% if (hasContact) { %>
+      <dl class="contact-list">
+        <% if (site.contact_email) { %><dt><%= t('Correo') %></dt><dd><a href="mailto:<%= site.contact_email %>"><%= site.contact_email %></a></dd><% } %>
+        <% if (site.contact_phone) { %><dt><%= t('Teléfono') %></dt><dd><a href="tel:<%= site.contact_phone.replace(/[^\d+]/g, '') %>"><%= site.contact_phone %></a></dd><% } %>
+        <% if (site.contact_place) { %><dt><%= t('Dónde encontrarnos') %></dt><dd><%= site.contact_place %></dd><% } %>
+        <% if (ig) { %><dt>Instagram</dt><dd><a href="<%= ig %>" rel="noopener" target="_blank"><%= site.contact_instagram.startsWith('http') ? 'Instagram' : '@' + site.contact_instagram.replace(/^@/, '') %></a></dd><% } %>
+      </dl>
+    <% } else { %>
+      <p class="muted"><%= t('Habla con cualquier miembro de la comisión en la pista.') %></p>
+    <% } %>
+  </aside>
+</div>
+<%- include('../partials/footer') %>

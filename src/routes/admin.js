@@ -6,8 +6,10 @@ const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const { flash, requireAdmin } = require('../middleware');
 const { TRANSITIONS } = require('../services');
+const { TEXT_KEYS, CONTACT_KEYS, getSettings, saveSettings } = require('../settings');
 const {
   normalizeDni, isValidDni, isValidEmail, generatePassword, parseMoney, fromLocalInput, slugify, orderCode, STATUS, formatDate,
+  instagramUrl,
 } = require('../util');
 
 const STATUSES = Object.keys(STATUS);
@@ -402,6 +404,29 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     db.prepare('DELETE FROM periods WHERE id = ?').run(Number(req.params.id));
     flash(req, 'ok', 'Periodo eliminado.');
     res.redirect('/admin/periodos');
+  });
+
+  // ---------- Textos de la web pública ----------
+  router.get('/web', (req, res) => {
+    res.render('admin/web', { title: 'Textos de la web', values: getSettings(db) });
+  });
+
+  router.post('/web', (req, res) => {
+    const values = {};
+    for (const key of TEXT_KEYS) values[key] = String(req.body[key] || '').trim().slice(0, 5000);
+    for (const key of CONTACT_KEYS) values[key] = String(req.body[key] || '').trim().slice(0, 200);
+    // Sin texto en castellano se volvería a mostrar el de ejemplo: se exige.
+    let error = null;
+    if (!values.home_intro || !values.about) error = 'Rellena al menos los textos en castellano.';
+    else if (values.contact_email && !isValidEmail(values.contact_email)) error = 'El correo de contacto no es válido.';
+    else if (values.contact_instagram && !instagramUrl(values.contact_instagram)) error = 'Instagram: escribe el usuario (@nombre) o el enlace al perfil.';
+    if (error) {
+      // Se vuelve a pintar el formulario con lo escrito para no perderlo.
+      return res.status(400).render('admin/web', { title: 'Textos de la web', values, flash: { type: 'error', text: error } });
+    }
+    saveSettings(db, values);
+    flash(req, 'ok', 'Textos de la web guardados.');
+    res.redirect('/admin/web');
   });
 
   // ---------- Familias (jugadores/as) ----------

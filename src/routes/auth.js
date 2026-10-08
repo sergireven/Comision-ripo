@@ -9,18 +9,19 @@ module.exports = function authRoutes({ db, mailer }) {
   const router = express.Router();
 
   const findLogin = db.prepare('SELECT * FROM users WHERE dni = ? OR username = ?');
+  const homeOf = (user) => (user.role === 'admin' ? '/admin' : '/tienda');
 
   function logIn(req, user, cb) {
     const returnTo = req.session.returnTo;
     req.session.regenerate((err) => {
       if (err) return cb(err);
       req.session.userId = user.id;
-      cb(null, returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/');
+      cb(null, returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : homeOf(user));
     });
   }
 
   router.get('/login', (req, res) => {
-    if (req.user) return res.redirect('/');
+    if (req.user) return res.redirect(homeOf(req.user));
     res.render('auth/login', { title: 'Entrar', usuario: '' });
   });
 
@@ -41,7 +42,7 @@ module.exports = function authRoutes({ db, mailer }) {
   });
 
   router.post('/logout', (req, res) => {
-    req.session.destroy(() => res.redirect('/login'));
+    req.session.destroy(() => res.redirect('/'));
   });
 
   // --- Primer acceso: DNI -> email -> se genera la contraseña ---
