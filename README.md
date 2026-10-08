@@ -91,7 +91,11 @@ Para probarlo con datos de ejemplo: `npm run seed-demo` (admin `comision` / `com
 Primeros pasos en la web: **Familias** → importar el listado de jugadores · **Productos** → crear los artículos con foto · **Periodos** → abrir un periodo de pedidos.
 
 ### Correo
-Sin `SMTP_HOST` los correos no se envían (solo se registran en *Admin › Correos*). Con Gmail: `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_SECURE=true`, el usuario de la cuenta y una [contraseña de aplicación](https://myaccount.google.com/apppasswords). Para muchos envíos es mejor un servicio como Brevo, Mailgun o SendGrid (todos dan datos SMTP).
+Sin servicio de correo los correos no se envían (solo se registran en *Admin › Correos*); en ese caso, al dar de alta familias con correo la cuenta queda para el «Primer acceso» (la contraseña sale en pantalla) en lugar de enviarse.
+
+**Brevo (recomendado, obligatorio en Railway Free/Hobby, que bloquea el SMTP):** crea una cuenta gratuita en brevo.com (300 correos/día), verifica el correo remitente (*Senders*), crea una clave API (*SMTP & API › API Keys*) y define `BREVO_API_KEY` y `MAIL_FROM=Comissió HC Ripollet <correo-verificado@…>`. El QR va como imagen enlazada a la web (`/qr-img/…`) y además adjunto.
+
+**SMTP:** si no hay `BREVO_API_KEY`, se usa `SMTP_HOST`. Con Gmail: `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_SECURE=true`, el usuario de la cuenta y una [contraseña de aplicación](https://myaccount.google.com/apppasswords). Para muchos envíos es mejor un servicio como Brevo, Mailgun o SendGrid (todos dan datos SMTP).
 
 ### Despliegue
 Es una app Node con la base de datos SQLite en `data/club.db` y las fotos en `uploads/`, así que necesita un hosting con **disco persistente** (un VPS, o Railway/Render/Fly.io con volumen). En producción hay que usar HTTPS y poner `COOKIE_SECURE=true` (y `TRUST_PROXY=1` si va detrás de un proxy). Para hacer una copia de seguridad basta con copiar `data/` y `uploads/`.

@@ -567,7 +567,16 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
    * Activa la cuenta con el correo indicado: genera una contraseña y se la envía a la familia.
    * Si ya tenía contraseña, la anterior deja de funcionar y se cierran sus sesiones.
    */
+  /**
+   * Activa la cuenta y envía la contraseña por correo. Devuelve false si no hay servicio de correo:
+   * entonces solo se guarda el correo y la cuenta queda sin activar para que la familia haga el «Primer acceso»
+   * (así nunca queda una contraseña que no ha recibido nadie).
+   */
   function sendAccess(req, userId, email) {
+    if (!mailer.enabled) {
+      db.prepare("UPDATE users SET email = ? WHERE id = ? AND role = 'family' AND activated_at IS NULL").run(email, userId);
+      return false;
+    }
     const password = generatePassword();
     db.transaction(() => {
       db.prepare(`UPDATE users SET email = ?, password_hash = ?,
@@ -576,7 +585,9 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       db.prepare("DELETE FROM sessions WHERE json_extract(data, '$.userId') = ?").run(userId);
     })();
     mailer.accountActivated(db.prepare('SELECT * FROM users WHERE id = ?').get(userId), password, req.appUrl);
+    return true;
   }
+  const NO_MAIL = 'El envío de correos no está configurado: la familia tendrá que hacer el «Primer acceso» con el DNI (la contraseña le sale en pantalla).';
 
   const readEmail = (value) => String(value || '').trim().toLowerCase();
 
@@ -602,8 +613,9 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     else {
       const info = db.prepare(`INSERT INTO users (role, dni, player_name, player_number, team)
         VALUES ('family', @dni, @player_name, @player_number, @team)`).run(value);
-      if (email) sendAccess(req, info.lastInsertRowid, email);
-      const msg = req.t(email ? 'Jugador/a añadido/a. Se ha enviado la contraseña a {email}.' : 'Jugador/a añadido/a.', { email });
+      const sent = email ? sendAccess(req, info.lastInsertRowid, email) : false;
+      let msg = req.t(sent ? 'Jugador/a añadido/a. Se ha enviado la contraseña a {email}.' : 'Jugador/a añadido/a.', { email });
+      if (email && !sent) msg += ` ${req.t(NO_MAIL)}`;
       flash(req, warning ? 'error' : 'ok', warning ? `${msg} ${req.t(warning.key, warning.params)}` : msg);
     }
     res.redirect('/admin/familias');
@@ -635,9 +647,10 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
         if (email && isValidEmail(email) && !exists?.activated_at) invites.push([value.dni, email]);
       }
     })();
-    for (const [dni, email] of invites) sendAccess(req, db.prepare('SELECT id FROM users WHERE dni = ?').get(dni).id, email);
+    const sent = invites.filter(([dni, email]) => sendAccess(req, db.prepare('SELECT id FROM users WHERE dni = ?').get(dni).id, email)).length;
     let msg = req.t('Importación: {added} nuevos, {updated} actualizados.', { added, updated });
-    if (invites.length) msg += ` ${req.t('Se ha enviado la contraseña por correo a {n} familia(s).', { n: invites.length })}`;
+    if (sent) msg += ` ${req.t('Se ha enviado la contraseña por correo a {n} familia(s).', { n: sent })}`;
+    if (invites.length && !mailer.enabled) msg += ` ${req.t(NO_MAIL)}`;
     flash(req, problems.length ? 'error' : 'ok', problems.length ? `${msg} ${req.t('Revisa:')} ${problems.join(' ')}` : msg);
     res.redirect('/admin/familias');
   });
@@ -669,7 +682,9 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     const family = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'family'").get(Number(req.params.id));
     if (!family) return res.redirect('/admin/familias');
     const email = readEmail(req.body.email) || family.email;
-    if (!isValidEmail(email)) {
+    if (!mailer.enabled) {
+      flash(req, 'error', 'El envío de correos no está configurado. Usa «Reiniciar acceso» para que la familia haga el «Primer acceso» con el DNI.');
+    } else if (!isValidEmail(email)) {
       flash(req, 'error', 'Introduce un correo válido.');
     } else {
       sendAccess(req, family.id, email);

@@ -8,13 +8,26 @@ const request = require('supertest');
 const bcrypt = require('bcryptjs');
 const { openDb } = require('../src/db');
 const { createApp } = require('../src/app');
+const { createMailer } = require('../src/mailer');
 const { fromLocalInput, toLocalInput, isValidDni } = require('../src/util');
 
-function setup() {
+/** Con { brevo: true } los correos «salen» por una API de Brevo simulada; `sent` guarda lo que se le envía. */
+function setup({ brevo = false } = {}) {
   const db = openDb(':memory:');
   const sent = [];
   const uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ripo-'));
-  const server = createApp(db, { uploadDir }).listen(0);
+  let mailer;
+  if (brevo) {
+    const saved = { key: process.env.BREVO_API_KEY, from: process.env.MAIL_FROM };
+    process.env.BREVO_API_KEY = 'clave-de-prueba';
+    process.env.MAIL_FROM = 'Comissió HC Ripollet <comissio@example.com>';
+    mailer = createMailer(db, {
+      fetchImpl: async (url, init) => { sent.push({ url, headers: init.headers, body: JSON.parse(init.body) }); return { ok: true }; },
+    });
+    if (saved.key === undefined) delete process.env.BREVO_API_KEY; else process.env.BREVO_API_KEY = saved.key;
+    if (saved.from === undefined) delete process.env.MAIL_FROM; else process.env.MAIL_FROM = saved.from;
+  }
+  const server = createApp(db, { uploadDir, mailer }).listen(0);
   test.after(() => server.close());
   const app = server;
   // Captura los correos registrados en email_log.
@@ -280,7 +293,7 @@ test('cancelación por la familia y recuperación de contraseña', async () => {
 });
 
 test('alta por la comisión con correo: la cuenta queda activada y recibe la contraseña', async () => {
-  const { db, app, mails } = setup();
+  const { db, app, mails, sent } = setup({ brevo: true });
   const adm = request.agent(app);
   await login(adm, 'comision', 'admin-password');
   let _csrf = await csrfOf(adm, '/admin/familias');
@@ -291,7 +304,13 @@ test('alta por la comisión con correo: la cuenta queda activada y recibe la con
   assert.ok(marc.activated_at);
   assert.strictEqual(marc.email, 'marc@example.com');
   await wait();
-  assert.ok(mails().some((m) => m.to_address === 'marc@example.com'));
+  assert.ok(mails().some((m) => m.to_address === 'marc@example.com' && m.status === 'enviado'));
+  // Lo que se envía a la API de Brevo
+  const call = sent.find((c) => c.body.to[0].email === 'marc@example.com');
+  assert.strictEqual(call.url, 'https://api.brevo.com/v3/smtp/email');
+  assert.strictEqual(call.headers['api-key'], 'clave-de-prueba');
+  assert.deepStrictEqual(call.body.sender, { name: 'Comissió HC Ripollet', email: 'comissio@example.com' });
+  assert.match(call.body.textContent, /RIPO-/);
 
   // Nadie puede «activarla» de nuevo con el DNI
   const other = request.agent(app);
@@ -446,4 +465,46 @@ test('packs: se aplican solos en el carrito, se pueden añadir enteros y quedan 
   assert.match(res.text, /Adhesivo escudo|Adhesiu escut/);
   assert.match(res.text, /Azul claro/);
   assert.match(res.text, /67,00/);
+});
+
+test('sin servicio de correo: no se activa la cuenta con una contraseña que nadie recibe', async () => {
+  const { db, app } = setup();
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  const _csrf = await csrfOf(adm, '/admin/familias');
+  await adm.post('/admin/familias').type('form').send({ _csrf, dni: '87654321X', player_name: 'Marc Soler', email: 'marc@example.com' });
+  const marc = db.prepare("SELECT * FROM users WHERE dni = '87654321X'").get();
+  assert.strictEqual(marc.activated_at, null, 'queda para el «Primer acceso»');
+  assert.strictEqual(marc.password_hash, null);
+  assert.strictEqual(marc.email, 'marc@example.com');
+  const res = await adm.get('/admin/familias');
+  assert.match(res.text, /Primer acc/);
+  assert.doesNotMatch(res.text, /Se ha enviado la contraseña|S&#39;ha enviat la contrasenya/);
+});
+
+test('correo con QR por Brevo: el QR va enlazado (imagen de la web) y adjunto', async () => {
+  const { db, app, sent } = setup({ brevo: true });
+  db.prepare("UPDATE users SET email = 'f@example.com', password_hash = ?, activated_at = 'x' WHERE dni = '12345678Z'").run(bcrypt.hashSync('clave-familia', 4));
+  db.prepare("INSERT INTO products (name, price_cents) VALUES ('Bufanda', 1000)").run();
+  db.prepare('INSERT INTO periods (name, starts_at, ends_at) VALUES (?, ?, ?)')
+    .run('P', new Date(Date.now() - 1000).toISOString(), new Date(Date.now() + 1e6).toISOString());
+  const fam = request.agent(app);
+  await login(fam, '12345678Z', 'clave-familia');
+  const _csrf = await csrfOf(fam, '/tienda');
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: 1, quantity: 1 });
+  await fam.post('/carrito/confirmar').type('form').send({ _csrf });
+  await wait();
+  const order = db.prepare('SELECT * FROM orders').get();
+  const mail = sent.find((c) => c.body.to[0].email === 'f@example.com');
+  assert.ok(mail.body.htmlContent.includes(`/qr-img/${order.pay_token}.png`));
+  assert.ok(!mail.body.htmlContent.includes('cid:'));
+  assert.strictEqual(mail.body.attachment[0].name, 'qr.png');
+  assert.ok(Buffer.from(mail.body.attachment[0].content, 'base64').subarray(1, 4).toString() === 'PNG');
+
+  // La imagen solo existe para tokens reales
+  let res = await request(app).get(`/qr-img/${order.pay_token}.png`);
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(res.headers['content-type'], 'image/png');
+  res = await request(app).get(`/qr-img/${'0'.repeat(64)}.png`);
+  assert.strictEqual(res.status, 404);
 });

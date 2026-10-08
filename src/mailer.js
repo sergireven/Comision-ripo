@@ -9,17 +9,58 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function createMailer(db) {
-  const configured = Boolean(process.env.SMTP_HOST);
-  const transport = configured
-    ? nodemailer.createTransport({
+/** «Nombre <correo@x>» -> { name, email } */
+function parseAddress(value) {
+  const m = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(value || '');
+  return m ? { name: m[1].replace(/^"|"$/g, '') || undefined, email: m[2].trim() } : { email: String(value || '').trim() };
+}
+
+/**
+ * Envío por la API HTTPS de Brevo (Railway bloquea el SMTP en los planes Free/Hobby).
+ * Brevo no admite imágenes incrustadas (cid): el QR va como imagen enlazada y además adjunto.
+ */
+function brevoTransport(apiKey, fetchImpl = globalThis.fetch) {
+  return {
+    async sendMail(mail) {
+      const res = await fetchImpl('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': apiKey, 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({
+          sender: parseAddress(mail.from),
+          to: [{ email: mail.to }],
+          subject: mail.subject,
+          textContent: mail.text,
+          ...(mail.html ? { htmlContent: mail.html.replace(/cid:qr/g, mail.qrImageUrl || 'cid:qr') } : {}),
+          ...(mail.attachments ? {
+            attachment: mail.attachments.map((a) => ({ name: a.filename, content: Buffer.from(a.content).toString('base64') })),
+          } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(`Brevo ${res.status}: ${detail.slice(0, 300)}`);
+      }
+    },
+  };
+}
+
+function createMailer(db, { fetchImpl } = {}) {
+  const provider = process.env.BREVO_API_KEY ? 'brevo' : process.env.SMTP_HOST ? 'smtp' : null;
+  let transport;
+  if (provider === 'brevo') {
+    transport = brevoTransport(process.env.BREVO_API_KEY, fetchImpl);
+  } else if (provider === 'smtp') {
+    transport = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT || 587),
       secure: process.env.SMTP_SECURE === 'true',
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
-    })
-    // Sin SMTP configurado los correos no salen: solo se guardan en el registro de emails (útil en pruebas).
-    : nodemailer.createTransport({ jsonTransport: true });
+    });
+  } else {
+    // Sin servicio de correo los correos no salen: solo se guardan en el registro de emails (útil en pruebas).
+    transport = nodemailer.createTransport({ jsonTransport: true });
+  }
+  const configured = Boolean(provider);
   const from = process.env.MAIL_FROM || `${CLUB} <no-reply@example.com>`;
   const log = db.prepare('INSERT INTO email_log (to_address, subject, body, status, error) VALUES (?, ?, ?, ?, ?)');
   const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
@@ -47,6 +88,8 @@ function createMailer(db) {
           + `<strong>${escapeHtml(qrCaption || '')}</strong></p>`
           + `<p style="color:#667085;font-size:13px">${escapeHtml(footer).replace(/\n/g, '<br>')}</p></div>`;
         mail.attachments = [{ filename: 'qr.png', content: png, cid: 'qr' }];
+        // Imagen servida por la web (solo existe para tokens de pedidos reales): la usa Brevo.
+        mail.qrImageUrl = qr.replace('/admin/qr/', '/qr-img/') + '.png';
       }
       await transport.sendMail(mail);
       log.run(to, fullSubject, logged, configured ? 'enviado' : 'simulado', null);
@@ -79,6 +122,8 @@ function createMailer(db) {
 
   return {
     send,
+    /** true si los correos salen de verdad (Brevo o SMTP); false si solo se registran. */
+    enabled: configured,
 
     accountActivated(user, password, appUrl) {
       const lang = langOf(user);
@@ -176,4 +221,4 @@ function createMailer(db) {
   };
 }
 
-module.exports = { createMailer };
+module.exports = { createMailer, parseAddress };

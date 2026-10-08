@@ -565,4 +565,8 @@ module.exports = {
   "Elige un color.": "Tria un color.",
   "Elige una opción.": "Tria una opció.",
   "Elige al menos un producto del pack (que no sea de regalo).": "Tria com a mínim un producte del pack (que no sigui de regal).",
+
+  // --- Correo ---
+  "El envío de correos no está configurado. Usa «Reiniciar acceso» para que la familia haga el «Primer acceso» con el DNI.": "L'enviament de correus no està configurat. Fes servir «Reiniciar accés» perquè la família faci el «Primer accés» amb el DNI.",
+  "El envío de correos no está configurado: la familia tendrá que hacer el «Primer acceso» con el DNI (la contraseña le sale en pantalla).": "L'enviament de correus no està configurat: la família haurà de fer el «Primer accés» amb el DNI (la contrasenya li surt en pantalla).",
 };

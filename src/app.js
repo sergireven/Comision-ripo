@@ -1,6 +1,7 @@
 const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
+const QRCode = require('qrcode');
 const session = require('express-session');
 const { SqliteStore } = require('./session-store');
 const { createMailer } = require('./mailer');
@@ -116,6 +117,16 @@ function createApp(db, options = {}) {
       if (ref.host === req.get('host')) back = ref.pathname + ref.search;
     } catch { /* sin referer válido */ }
     res.redirect(back);
+  });
+
+  // Imagen del QR para los correos (Brevo no permite incrustarla). Solo para tokens de pedidos que existen;
+  // el token (64 hex, imposible de adivinar) ya va en el propio correo, así que no expone nada nuevo.
+  app.get('/qr-img/:token.png', async (req, res, next) => {
+    try {
+      if (!orders.findByToken(req.params.token)) return res.status(404).end();
+      const png = await QRCode.toBuffer(`${req.appUrl}/admin/qr/${req.params.token}`, { width: 320, margin: 2 });
+      res.set('Cache-Control', 'private, max-age=86400').type('png').send(png);
+    } catch (err) { next(err); }
   });
 
   app.use(require('./routes/site')(ctx));
