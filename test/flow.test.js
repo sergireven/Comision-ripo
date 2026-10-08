@@ -370,3 +370,80 @@ test('web pública: portada, qui som y catálogo sin iniciar sesión; textos edi
   assert.match(res.text, /mailto:comissio@example\.com/);
   assert.match(res.text, /https:\/\/www\.instagram\.com\/hcripollet\//);
 });
+
+test('packs: se aplican solos en el carrito, se pueden añadir enteros y quedan en el pedido', async () => {
+  const { db, app } = setup();
+  db.prepare("UPDATE users SET password_hash = ?, activated_at = 'x' WHERE dni = '12345678Z'").run(bcrypt.hashSync('clave-familia', 4));
+  db.prepare('INSERT INTO periods (name, starts_at, ends_at) VALUES (?, ?, ?)')
+    .run('P', new Date(Date.now() - 1000).toISOString(), new Date(Date.now() + 1e6).toISOString());
+  const product = db.prepare('INSERT INTO products (name, name_ca, price_cents, sizes, colors) VALUES (?, ?, ?, ?, ?)');
+  const bufanda = product.run('Bufanda', 'Bufanda', 1000, null, 'Amarillo').lastInsertRowid;
+  const camiseta = product.run('Camiseta afició', 'Samarreta afició', 1500, 'S, M', 'Azul claro, Amarillo').lastInsertRowid;
+  const sudadera = product.run('Sudadera', 'Dessuadora', 2500, 'S, M', null).lastInsertRowid;
+  const adhesivo = product.run('Adhesivo escudo', 'Adhesiu escut', 300, null, null).lastInsertRowid;
+
+  // La comisión crea los packs desde el panel.
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  let _csrf = await csrfOf(adm, '/admin/packs/nuevo');
+  let res = await adm.post(`/admin/packs?_csrf=${_csrf}`).field('name', 'Pack AFICIÓ 1').field('price', '22').field('active', '1')
+    .field(`item_${camiseta}`, 'in').field(`item_${bufanda}`, 'in');
+  assert.strictEqual(res.status, 302);
+  res = await adm.post(`/admin/packs?_csrf=${_csrf}`).field('name', 'Sin productos').field('price', '5').field('active', '1');
+  assert.strictEqual(res.status, 400, 'un pack necesita productos');
+  await adm.post(`/admin/packs?_csrf=${_csrf}`).field('name', 'Pack AFICIÓ 3').field('price', '45').field('active', '1')
+    .field(`item_${camiseta}`, 'in').field(`item_${bufanda}`, 'in').field(`item_${sudadera}`, 'in').field(`item_${adhesivo}`, 'gift');
+  assert.strictEqual(db.prepare('SELECT COUNT(*) n FROM packs').get().n, 2);
+  assert.match((await adm.get('/admin/packs')).text, /−3,00/);
+
+  // Tienda pública: los packs se ven sin entrar.
+  res = await request(app).get('/tienda?categoria=packs');
+  assert.match(res.text, /Pack AFICIÓ 1/);
+
+  const fam = request.agent(app);
+  await login(fam, '12345678Z', 'clave-familia');
+  _csrf = await csrfOf(fam, '/tienda');
+
+  // Color obligatorio cuando hay varios; con un solo color se asigna solo.
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: camiseta, quantity: 1, size: 'M' });
+  assert.strictEqual(db.prepare('SELECT COUNT(*) n FROM cart_items').get().n, 0, 'color obligatorio');
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: camiseta, quantity: 1, size: 'M', color: 'Amarillo' });
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: bufanda, quantity: 1 });
+  assert.strictEqual(db.prepare('SELECT color FROM cart_items WHERE product_id = ?').get(bufanda).color, 'Amarillo');
+
+  // Camiseta + bufanda por separado: se aplica el Pack AFICIÓ 1.
+  res = await fam.get('/carrito');
+  assert.match(res.text, /Packs aplicats|Packs aplicados/);
+  assert.match(res.text, /Pack AFICIÓ 1/);
+  assert.match(res.text, /22,00/);
+
+  // Añadir una sudadera: sale más a cuenta el Pack AFICIÓ 3, con el adhesivo de regalo.
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: sudadera, quantity: 1, size: 'S' });
+  res = await fam.get('/carrito');
+  assert.match(res.text, /Pack AFICIÓ 3/);
+  assert.match(res.text, /Adhesiu escut|Adhesivo escudo/);
+  assert.match(res.text, /45,00/);
+
+  // Añadir el Pack AFICIÓ 1 entero, con sus elecciones.
+  res = await fam.post('/carrito/pack').type('form').send({ _csrf, pack_id: 1, [`size_${camiseta}`]: 'S' });
+  assert.strictEqual(db.prepare('SELECT SUM(quantity) n FROM cart_items').get().n, 3, 'sin color no se añade nada');
+  await fam.post('/carrito/pack').type('form').send({ _csrf, pack_id: 1, [`size_${camiseta}`]: 'S', [`color_${camiseta}`]: 'Azul claro' });
+  assert.strictEqual(db.prepare('SELECT SUM(quantity) n FROM cart_items').get().n, 5);
+
+  // Pedido: 2 camisetas + 2 bufandas + 1 sudadera = 75 € -> AFICIÓ 3 (−5) + AFICIÓ 1 (−3) = 67 €.
+  await fam.post('/carrito/confirmar').type('form').send({ _csrf });
+  const order = db.prepare('SELECT * FROM orders').get();
+  assert.strictEqual(order.total_cents, 6700);
+  const items = db.prepare('SELECT * FROM order_items WHERE order_id = ? ORDER BY id').all(order.id);
+  assert.strictEqual(items.reduce((s, i) => s + i.unit_price_cents * i.quantity, 0), 6700, 'las líneas cuadran con el total');
+  assert.deepStrictEqual(items.filter((i) => i.kind === 'pack').map((i) => [i.product_name, i.unit_price_cents]).sort(),
+    [['Pack AFICIÓ 1', -300], ['Pack AFICIÓ 3', -500]]);
+  assert.ok(items.some((i) => i.kind === 'gift' && i.product_name === 'Adhesivo escudo' && i.unit_price_cents === 0));
+  assert.ok(items.some((i) => i.color === 'Azul claro' && i.size === 'S'));
+
+  // El resumen para el proveedor cuenta el regalo como unidad y no cuenta los descuentos.
+  res = await adm.get('/admin/resumen');
+  assert.match(res.text, /Adhesivo escudo|Adhesiu escut/);
+  assert.match(res.text, /Azul claro/);
+  assert.match(res.text, /67,00/);
+});

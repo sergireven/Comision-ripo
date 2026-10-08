@@ -59,6 +59,21 @@ Si la comisión se equivoca, puede deshacer un paso. Cada cambio queda en el his
 Activación de cuenta, recuperación de contraseña, pedido recibido, pago registrado (con el enlace al QR), pedido entregado y pedido cancelado.
 Si se define `ADMIN_NOTIFY_EMAIL`, la comisión recibe un aviso de cada pedido nuevo o cancelado.
 
+### Colores, opciones y packs
+- Cada producto puede tener **colores** y **opciones** (p. ej. «Escudo, Pollito») separados por comas: la familia elige uno al comprar. Con un solo valor se asigna sin preguntar. También puede llevar una **guía de tallas** (imagen).
+- **Packs** (*Admin › Packs*): varios productos a un precio especial; algunos pueden ir **de regalo**.
+- En el carrito los packs se aplican solos con la combinación que más ahorra, tanto si la familia añade el pack entero como si añade los productos por separado (2 camisetas + 2 bufandas = 2 packs). Se ve el pack aplicado, los productos de cada pack y el descuento.
+- En el pedido el descuento queda como una línea en negativo y los regalos como líneas a 0 €, así el total, los correos, el CSV y la caja cuadran. El *Resumen* para el proveedor cuenta los regalos como unidades.
+
+### Cargar el catálogo desde Excel
+La plantilla `plantilla-articulos-v2.xlsx` tiene una hoja de artículos y otra de packs (con IDs numéricos). Las fotos van en la carpeta `img/`.
+
+```bash
+python scripts/catalogo-excel-a-json.py plantilla-articulos-v2.xlsx catalogo.json   # necesita openpyxl
+npm run import-catalog -- catalogo.json img
+```
+Se puede repetir: los artículos y packs se actualizan por nombre y los productos que ya no están en el Excel se ocultan (no se borran).
+
 ## Puesta en marcha
 
 Requisitos: Node.js 20 o superior.

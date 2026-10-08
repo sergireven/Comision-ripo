@@ -20,9 +20,15 @@
       <label><%= t('Tallas (separadas por comas, vacío si no tiene)') %>
         <input name="sizes" value="<%= product.sizes || '' %>" placeholder="6, 8, 10, 12, 14, S, M, L, XL">
       </label>
+      <label><%= t('Colores (separados por comas, la familia elige uno)') %>
+        <input name="colors" value="<%= product.colors || '' %>" placeholder="<%= t('Ej.: Amarillo, Azul marino, Negro') %>">
+      </label>
+      <label><%= t('Opciones (separadas por comas, la familia elige una)') %>
+        <input name="options" value="<%= product.options || '' %>" placeholder="<%= t('Ej.: Escudo, Pollito') %>">
+      </label>
       <label><%= t('Descripción (castellano)') %> <textarea name="description" rows="2" maxlength="1000"><%= product.description || '' %></textarea></label>
       <label><%= t('Descripción (catalán)') %> <textarea name="description_ca" rows="2" maxlength="1000" placeholder="<%= t('Opcional') %>"><%= product.description_ca || '' %></textarea></label>
-      <label class="check"><input type="checkbox" name="personalization" value="1" <%= product.personalization ? 'checked' : '' %>> <%= t('Requiere nombre + dorsal del jugador/a') %></label>
+      <label class="check"><input type="checkbox" name="personalization" value="1" <%= product.personalization ? 'checked' : '' %>> <%= t('Requiere nombre + número del jugador/a') %></label>
       <label class="check"><input type="checkbox" name="active" value="1" <%= product.active ? 'checked' : '' %>> <%= t('Visible en la tienda') %></label>
     </div>
     <div>
@@ -31,6 +37,12 @@
       </label>
       <img id="preview" class="preview" src="<%= product.image ? '/uploads/' + product.image : '' %>" alt="" <%= product.image ? '' : 'hidden' %>>
       <% if (product.image) { %><label class="check"><input type="checkbox" name="remove_image" value="1"> <%= t('Quitar foto') %></label><% } %>
+      <hr>
+      <label><%= t('Guía de tallas (imagen, opcional)') %>
+        <input type="file" name="size_guide" accept="image/jpeg,image/png,image/webp,image/gif" data-preview="#preview-guide">
+      </label>
+      <img id="preview-guide" class="preview" src="<%= product.size_guide ? '/uploads/' + product.size_guide : '' %>" alt="" <%= product.size_guide ? '' : 'hidden' %>>
+      <% if (product.size_guide) { %><label class="check"><input type="checkbox" name="remove_size_guide" value="1"> <%= t('Quitar guía de tallas') %></label><% } %>
     </div>
   </div>
   <button class="btn primary"><%= t('Guardar') %></button>

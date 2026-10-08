@@ -1,0 +1,55 @@
+<%- include('../partials/header') %>
+<p><a href="/admin/packs">← <%= t('Packs') %></a></p>
+<h1><%= t(title) %></h1>
+<% if (typeof error !== 'undefined') { %><div class="flash error"><%= t(error) %></div><% } %>
+<form method="post" enctype="multipart/form-data" class="form"
+      action="/admin/packs<%= pack.id ? '/' + pack.id : '' %>?_csrf=<%= csrf %>">
+  <div class="card">
+    <div class="grid two">
+      <div>
+        <div class="row wrap-row">
+          <label class="grow"><%= t('Nombre (castellano)') %> <input name="name" value="<%= pack.name || '' %>" maxlength="100" required></label>
+          <label class="grow"><%= t('Nombre (catalán)') %> <input name="name_ca" value="<%= pack.name_ca || '' %>" maxlength="100" placeholder="<%= t('Opcional') %>"></label>
+        </div>
+        <label><%= t('Precio del pack (€)') %> <input name="price" inputmode="decimal" value="<%= pack.price_cents != null ? (pack.price_cents / 100).toFixed(2).replace('.', ',') : '' %>" placeholder="22,00" required></label>
+        <label><%= t('Descripción (castellano)') %> <textarea name="description" rows="2" maxlength="1000"><%= pack.description || '' %></textarea></label>
+        <label><%= t('Descripción (catalán)') %> <textarea name="description_ca" rows="2" maxlength="1000" placeholder="<%= t('Opcional') %>"><%= pack.description_ca || '' %></textarea></label>
+        <label class="check"><input type="checkbox" name="active" value="1" <%= pack.active ? 'checked' : '' %>> <%= t('Visible en la tienda') %></label>
+      </div>
+      <div>
+        <label><%= t('Foto (opcional: si no hay, se muestran las de los productos)') %>
+          <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" data-preview="#preview">
+        </label>
+        <img id="preview" class="preview" src="<%= pack.image ? '/uploads/' + pack.image : '' %>" alt="" <%= pack.image ? '' : 'hidden' %>>
+        <% if (pack.image) { %><label class="check"><input type="checkbox" name="remove_image" value="1"> <%= t('Quitar foto') %></label><% } %>
+      </div>
+    </div>
+  </div>
+
+  <div class="card table-wrap">
+    <h2 class="pad"><%= t('Productos del pack') %></h2>
+    <p class="hint pad"><%= t('«Incluido»: la familia lo paga dentro del pack. «De regalo»: se añade gratis cuando se aplica el pack.') %></p>
+    <table class="table">
+      <thead><tr><th><%= t('Producto') %></th><th class="num"><%= t('Precio') %></th><th><%= t('No') %></th><th><%= t('Incluido') %></th><th><%= t('De regalo') %></th></tr></thead>
+      <tbody>
+      <% products.forEach(p => { const v = chosen[p.id] || ''; %>
+        <tr class="<%= p.active ? '' : 'unavailable' %>">
+          <td><%= loc(p, 'name') %><% if (!p.active) { %> <span class="badge muted"><%= t('Oculto') %></span><% } %></td>
+          <td class="num"><%= formatMoney(p.price_cents) %></td>
+          <td><input type="radio" name="item_<%= p.id %>" value="" <%= v === '' ? 'checked' : '' %> aria-label="<%= t('No') %>"></td>
+          <td><input type="radio" name="item_<%= p.id %>" value="in" <%= v === 'in' ? 'checked' : '' %> aria-label="<%= t('Incluido') %>"></td>
+          <td><input type="radio" name="item_<%= p.id %>" value="gift" <%= v === 'gift' ? 'checked' : '' %> aria-label="<%= t('De regalo') %>"></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <button class="btn primary big"><%= t('Guardar') %></button>
+</form>
+<% if (pack.id) { %>
+  <form method="post" action="/admin/packs/<%= pack.id %>/eliminar" data-confirm="<%= t('¿Eliminar este pack? Los pedidos ya hechos no se ven afectados. (Si solo quieres ocultarlo, desmarca «Visible».)') %>">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <button class="btn danger ghost small"><%= t('Eliminar pack') %></button>
+  </form>
+<% } %>
+<%- include('../partials/footer') %>

@@ -59,12 +59,17 @@ function createMailer(db) {
   function itemsText(lang, items) {
     const t = (k, p) => translate(lang, k, p);
     return items.map((it) => {
+      const name = localized(lang, it, 'product_name');
+      if (it.kind === 'pack') return `  · ${t('Descuento {name}', { name })}${it.quantity > 1 ? ` (x${it.quantity})` : ''} — ${formatMoney(it.unit_price_cents * it.quantity)}`;
+      if (it.kind === 'gift') return `  · ${it.quantity} x ${name} (${t('de regalo')}) — ${formatMoney(0)}`;
       const extras = [
+        it.color,
+        it.option_value,
         it.size && t('talla {size}', { size: it.size }),
         it.custom_name && t('nombre «{name}»', { name: it.custom_name }),
-        it.custom_number && t('dorsal {number}', { number: it.custom_number }),
+        it.custom_number && t('número {number}', { number: it.custom_number }),
       ].filter(Boolean).join(', ');
-      return `  · ${it.quantity} x ${localized(lang, it, 'product_name')}${extras ? ` (${extras})` : ''} — ${formatMoney(it.unit_price_cents * it.quantity)}`;
+      return `  · ${it.quantity} x ${name}${extras ? ` (${extras})` : ''} — ${formatMoney(it.unit_price_cents * it.quantity)}`;
     }).join('\n');
   }
 

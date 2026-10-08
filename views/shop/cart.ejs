@@ -12,7 +12,9 @@
       <tbody>
       <% cart.items.forEach(it => { %>
         <tr class="<%= it.active ? '' : 'unavailable' %>">
-          <td><strong><%= loc(it, 'product_name') %></strong><% if (!it.active) { %><br><span class="badge muted"><%= t('No disponible') %></span><% } %></td>
+          <td><strong><%= loc(it, 'product_name') %></strong>
+            <% if (!it.active) { %><br><span class="badge muted"><%= t('No disponible') %></span><% } %>
+            <% if (it.inPack) { %><br><span class="badge info"><%= it.inPack === it.quantity ? t('En pack') : t('{n} en pack', { n: it.inPack }) %></span><% } %></td>
           <td class="small" data-label="<%= t('Detalles') %>"><%- include('../partials/items', { it }) %></td>
           <td data-label="<%= t('Precio') %>"><%= formatMoney(it.price_cents) %></td>
           <td data-label="<%= t('Cantidad') %>">
@@ -32,13 +34,40 @@
         </tr>
       <% }) %>
       </tbody>
-      <tfoot><tr><th colspan="4"><%= t('Total') %></th><th class="num"><%= formatMoney(cart.total) %></th><th></th></tr></tfoot>
     </table>
+  </div>
+
+  <% if (cart.applied.length) { %>
+  <section class="card packs-applied">
+    <h2>🎉 <%= t('Packs aplicados') %></h2>
+    <% cart.applied.forEach(a => { %>
+      <div class="applied">
+        <div class="applied-head">
+          <strong><%= loc(a.pack, 'name') %></strong>
+          <span><s class="muted"><%= formatMoney(a.regular) %></s> <strong><%= formatMoney(a.pack.price_cents) %></strong> <span class="badge ok">−<%= formatMoney(a.saving) %></span></span>
+        </div>
+        <ul class="small">
+          <% a.units.forEach(u => { %><li><%= loc(u, 'product_name') %><% const d = [u.color, u.option_value, u.size && t('Talla') + ' ' + u.size, u.custom_name && '«' + u.custom_name + '» ' + u.custom_number].filter(Boolean); if (d.length) { %> <span class="muted">(<%= d.join(' · ') %>)</span><% } %></li><% }) %>
+          <% a.gifts.forEach(g => { %><li class="gift">🎁 <%= loc(g, 'name') %> <span class="badge ok"><%= t('de regalo') %></span></li><% }) %>
+        </ul>
+      </div>
+    <% }) %>
+  </section>
+  <% } else { %>
+    <p class="muted small"><%= t('Si añades los artículos de un pack, el descuento se aplica solo.') %> <a href="/tienda?categoria=packs"><%= t('Ver packs') %></a></p>
+  <% } %>
+
+  <div class="card totals">
+    <% if (cart.discount) { %>
+      <div class="total-row"><span><%= t('Subtotal') %></span><span><%= formatMoney(cart.subtotal) %></span></div>
+      <div class="total-row discount"><span><%= t('Descuento packs') %></span><span>−<%= formatMoney(cart.discount) %></span></div>
+    <% } %>
+    <div class="total-row grand"><span><%= t('Total') %></span><span><%= formatMoney(cart.total) %></span></div>
   </div>
 
   <div class="card checkout">
     <div>
-      <p><strong><%= t('Revisa que todo sea correcto (tallas, nombre y dorsal) antes de confirmar.') %></strong></p>
+      <p><strong><%= t('Revisa que todo sea correcto (colores, tallas, nombre y número) antes de confirmar.') %></strong></p>
       <p class="muted small"><%= t('El pago se hace en mano a la comisión. Hasta que no esté pagado podrás cancelar el pedido.') %></p>
     </div>
     <form method="post" action="/carrito/confirmar" data-confirm="<%= t('¿Confirmas el pedido por {amount}?', { amount: formatMoney(cart.total) }) %>">

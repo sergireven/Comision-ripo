@@ -1,0 +1,4 @@
+<%# Nombre de una línea de pedido; los descuentos de pack y los regalos llevan su etiqueta. %>
+<% if (it.kind === 'pack') { %><span class="badge ok"><%= t('Descuento') %></span> <%= loc(it, 'product_name') %><%
+   } else if (it.kind === 'gift') { %>🎁 <%= loc(it, 'product_name') %> <span class="badge ok"><%= t('de regalo') %></span><%
+   } else { %><%= loc(it, 'product_name') %><% } %>

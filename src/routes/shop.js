@@ -13,12 +13,38 @@ module.exports = function shopRoutes({ db, mailer, orders }) {
     const categories = db.prepare(`SELECT c.* FROM categories c
       WHERE EXISTS (SELECT 1 FROM products p WHERE p.category_id = c.id AND p.active = 1)
       ORDER BY c.sort_order, c.name`).all();
+    const showPacks = !req.query.categoria || req.query.categoria === 'packs';
+    const packs = showPacks ? orders.activePacks() : [];
+    if (req.query.categoria === 'packs') {
+      return res.render('shop/index', { title: 'Tienda', categories, selected: null, products: [], packs, onlyPacks: true });
+    }
     const selected = categories.find((c) => c.slug === req.query.categoria) || null;
     const products = selected
       ? db.prepare('SELECT * FROM products WHERE active = 1 AND category_id = ? ORDER BY name').all(selected.id)
       : db.prepare(`SELECT p.* FROM products p LEFT JOIN categories c ON c.id = p.category_id
           WHERE p.active = 1 ORDER BY c.sort_order, p.name`).all();
-    res.render('shop/index', { title: 'Tienda', categories, selected, products });
+    res.render('shop/index', { title: 'Tienda', categories, selected, products, packs, onlyPacks: false });
+  });
+
+  router.post('/carrito/pack', requireFamily, (req, res) => {
+    let back = '/tienda';
+    try {
+      const ref = new URL(req.get('referer') || '');
+      if (ref.pathname === '/tienda') back = ref.pathname + ref.search;
+    } catch { /* sin referer válido */ }
+    if (!shopStatus(db).open) {
+      flash(req, 'error', 'Ahora mismo no hay ningún periodo de pedidos abierto.');
+      return res.redirect(back);
+    }
+    const result = orders.addPackToCart(req.user.id, Number(req.body.pack_id), req.body);
+    if (result.error && result.product) {
+      flash(req, 'error', '«{name}»: {error}', { name: localized(req.lang, result.product, 'name'), error: req.t(result.error) });
+    } else if (result.error) {
+      flash(req, 'error', result.error);
+    } else {
+      flash(req, 'ok', 'Añadido al carrito: {name}.', { name: localized(req.lang, result.pack, 'name') });
+    }
+    res.redirect(back);
   });
 
   router.post('/carrito/anadir', requireFamily, (req, res) => {
@@ -74,7 +100,7 @@ module.exports = function shopRoutes({ db, mailer, orders }) {
   });
 
   router.get('/pedidos', requireFamily, (req, res) => {
-    const list = db.prepare(`SELECT o.*, (SELECT SUM(quantity) FROM order_items WHERE order_id = o.id) AS units
+    const list = db.prepare(`SELECT o.*, (SELECT SUM(quantity) FROM order_items WHERE order_id = o.id AND kind != 'pack') AS units
       FROM orders o WHERE o.user_id = ? ORDER BY o.id DESC`).all(req.user.id);
     const pending = list.filter((o) => o.status === 'pendiente_pago').reduce((s, o) => s + o.total_cents, 0);
     res.render('shop/orders', { title: 'Mis pedidos', list, pending });

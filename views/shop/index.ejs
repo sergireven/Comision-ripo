@@ -1,10 +1,13 @@
 <%- include('../partials/header') %>
+<% const isFamily = user && user.role === 'family';
+   const hasChoices = (p) => parseSizes(p.sizes).length || parseSizes(p.colors).length > 1 || parseSizes(p.options).length > 1 || p.personalization; %>
 <div class="page-head">
   <h1><%= t('Tienda') %></h1>
   <form method="get" action="/tienda" class="filter">
     <label for="cat" class="sr-only"><%= t('Tipo de producto') %></label>
     <select id="cat" name="categoria" data-autosubmit>
       <option value=""><%= t('Todos los productos') %></option>
+      <option value="packs" <%= onlyPacks ? 'selected' : '' %>><%= t('Packs') %></option>
       <% categories.forEach(c => { %>
         <option value="<%= c.slug %>" <%= selected && selected.id === c.id ? 'selected' : '' %>><%= loc(c, 'name') %></option>
       <% }) %>
@@ -14,51 +17,86 @@
 </div>
 <% if (!user) { %><p class="muted page-intro"><%= t('Las familias del club pueden hacer pedidos entrando con el DNI del jugador/a.') %> <a href="/login"><%= t('Entrar') %></a></p><% } %>
 
-<% if (!products.length) { %>
-  <div class="card center muted"><%= t('Todavía no hay productos en esta sección.') %></div>
+<% if (packs.length) { %>
+<section class="shop-section">
+  <h2 class="section-title"><%= t('Packs') %> <span class="muted small"><%= t('Varios artículos a precio especial. Si añades los artículos por separado, el pack se aplica solo en el carrito.') %></span></h2>
+  <div class="products">
+  <% packs.forEach(pk => {
+       const parts = pk.items.filter(i => !i.gift), gifts = pk.items.filter(i => i.gift);
+       const regular = parts.reduce((s, i) => s + i.price_cents, 0); %>
+    <article class="product card pack">
+      <div class="product-img">
+        <% if (pk.image) { %><img src="/uploads/<%= pk.image %>" alt="<%= loc(pk, 'name') %>" loading="lazy">
+        <% } else { %><div class="mosaic n<%= Math.min(parts.length, 4) %>"><% parts.slice(0, 4).forEach(i => { %><img src="<%= i.image ? '/uploads/' + i.image : '/static/img/escut.gif' %>" alt="" loading="lazy"><% }) %></div><% } %>
+        <% if (regular > pk.price_cents) { %><span class="save-badge">−<%= formatMoney(regular - pk.price_cents) %></span><% } %>
+      </div>
+      <div class="product-body">
+        <h2><%= loc(pk, 'name') %></h2>
+        <% if (loc(pk, 'description')) { %><p class="muted small"><%= loc(pk, 'description') %></p><% } %>
+        <ul class="pack-parts small">
+          <% parts.forEach(i => { %><li><%= loc(i, 'name') %> <span class="muted"><%= formatMoney(i.price_cents) %></span></li><% }) %>
+          <% gifts.forEach(i => { %><li class="gift">🎁 <%= loc(i, 'name') %> <span class="badge ok"><%= t('de regalo') %></span></li><% }) %>
+        </ul>
+        <div class="price"><%= formatMoney(pk.price_cents) %> <% if (regular > pk.price_cents) { %><s class="was"><%= formatMoney(regular) %></s><% } %></div>
+        <% if (!user) { %>
+          <a class="btn primary block product-cta" href="/login"><%= t('Entra para comprar') %></a>
+        <% } else if (isFamily) { %>
+          <form method="post" action="/carrito/pack" class="form compact">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <input type="hidden" name="pack_id" value="<%= pk.id %>">
+            <% parts.filter(hasChoices).forEach(i => { %>
+              <fieldset class="pack-choice">
+                <legend><%= loc(i, 'name') %></legend>
+                <%- include('../partials/choices', { p: i, suffix: '_' + i.product_id }) %>
+              </fieldset>
+            <% }) %>
+            <button class="btn primary block" <%= shop.open ? '' : 'disabled' %>><%= t('Añadir el pack al carrito') %></button>
+          </form>
+        <% } %>
+      </div>
+    </article>
+  <% }) %>
+  </div>
+</section>
 <% } %>
 
-<div class="products">
-<% products.forEach(p => { const sizes = parseSizes(p.sizes); %>
-  <article class="product card">
-    <div class="product-img">
-      <% if (p.image) { %><img src="/uploads/<%= p.image %>" alt="<%= loc(p, 'name') %>" loading="lazy"><% } else { %><img src="/static/img/escut.gif" alt="" class="placeholder"><% } %>
-    </div>
-    <div class="product-body">
-      <h2><%= loc(p, 'name') %></h2>
-      <% if (loc(p, 'description')) { %><p class="muted small"><%= loc(p, 'description') %></p><% } %>
-      <div class="price"><%= formatMoney(p.price_cents) %></div>
-      <% if (!user || user.role !== 'family') { %>
-        <% if (sizes.length) { %><p class="muted small"><%= t('Tallas') %>: <%= sizes.join(', ') %></p><% } %>
-        <% if (p.personalization) { %><p class="hint"><%= t('Se personaliza con nombre y dorsal.') %></p><% } %>
-        <% if (!user) { %><a class="btn primary block product-cta" href="/login"><%= t('Entra para comprar') %></a><% } %>
-      <% } else { %>
-      <form method="post" action="/carrito/anadir" class="form compact">
-        <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <input type="hidden" name="product_id" value="<%= p.id %>">
-        <% if (sizes.length) { %>
-          <label><%= t('Talla') %>
-            <select name="size" required>
-              <option value=""><%= t('Elige…') %></option>
-              <% sizes.forEach(s => { %><option><%= s %></option><% }) %>
-            </select>
-          </label>
-        <% } %>
-        <% if (p.personalization) { %>
+<% if (!onlyPacks) { %>
+<section class="shop-section">
+  <% if (packs.length) { %><h2 class="section-title"><%= selected ? loc(selected, 'name') : t('Artículos') %></h2><% } %>
+  <% if (!products.length) { %>
+    <div class="card center muted"><%= t('Todavía no hay productos en esta sección.') %></div>
+  <% } %>
+  <div class="products">
+  <% products.forEach(p => { const sizes = parseSizes(p.sizes), colors = parseSizes(p.colors); %>
+    <article class="product card">
+      <div class="product-img">
+        <% if (p.image) { %><img src="/uploads/<%= p.image %>" alt="<%= loc(p, 'name') %>" loading="lazy"><% } else { %><img src="/static/img/escut.gif" alt="" class="placeholder"><% } %>
+      </div>
+      <div class="product-body">
+        <h2><%= loc(p, 'name') %></h2>
+        <% if (loc(p, 'description')) { %><p class="muted small"><%= loc(p, 'description') %></p><% } %>
+        <div class="price"><%= formatMoney(p.price_cents) %></div>
+        <% if (!isFamily) { %>
+          <% if (colors.length) { %><p class="muted small"><%= t(colors.length > 1 ? 'Colores' : 'Color') %>: <%= colors.join(', ') %></p><% } %>
+          <% if (sizes.length) { %><p class="muted small"><%= t('Tallas') %>: <%= sizes.join(', ') %>
+            <% if (p.size_guide) { %>· <a href="/uploads/<%= p.size_guide %>" target="_blank" rel="noopener"><%= t('Guía de tallas') %></a><% } %></p><% } %>
+          <% if (p.personalization) { %><p class="hint"><%= t('Se personaliza con nombre y número.') %></p><% } %>
+          <% if (!user) { %><a class="btn primary block product-cta" href="/login"><%= t('Entra para comprar') %></a><% } %>
+        <% } else { %>
+        <form method="post" action="/carrito/anadir" class="form compact">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <input type="hidden" name="product_id" value="<%= p.id %>">
+          <%- include('../partials/choices', { p, suffix: '' }) %>
           <div class="row">
-            <label class="grow"><%= t('Nombre') %> <input name="custom_name" maxlength="30" value="<%= user.player_name ? user.player_name.split(' ')[0] : '' %>" required></label>
-            <label class="w-dorsal"><%= t('Dorsal') %> <input name="custom_number" inputmode="numeric" pattern="\d{1,3}" maxlength="3" value="<%= user.player_number || '' %>" required></label>
+            <label class="w-qty"><%= t('Cantidad') %> <input type="number" name="quantity" min="1" max="50" value="1" required></label>
+            <button class="btn primary grow" <%= shop.open ? '' : 'disabled' %>><%= t('Añadir al carrito') %></button>
           </div>
-          <p class="hint"><%= t('Se personaliza con nombre y dorsal.') %></p>
+        </form>
         <% } %>
-        <div class="row">
-          <label class="w-qty"><%= t('Cantidad') %> <input type="number" name="quantity" min="1" max="50" value="1" required></label>
-          <button class="btn primary grow" <%= shop.open ? '' : 'disabled' %>><%= t('Añadir al carrito') %></button>
-        </div>
-      </form>
-      <% } %>
-    </div>
-  </article>
-<% }) %>
-</div>
+      </div>
+    </article>
+  <% }) %>
+  </div>
+</section>
+<% } %>
 <%- include('../partials/footer') %>

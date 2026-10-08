@@ -116,6 +116,26 @@ CREATE TABLE IF NOT EXISTS email_log (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+-- Packs: varios productos a un precio especial. Los productos con gift = 1 van de regalo.
+CREATE TABLE IF NOT EXISTS packs (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  name           TEXT NOT NULL,
+  name_ca        TEXT,
+  description    TEXT,
+  description_ca TEXT,
+  price_cents    INTEGER NOT NULL CHECK (price_cents >= 0),
+  image          TEXT,
+  active         INTEGER NOT NULL DEFAULT 1,
+  created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE TABLE IF NOT EXISTS pack_items (
+  pack_id    INTEGER NOT NULL REFERENCES packs(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  gift       INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (pack_id, product_id)
+);
+
 -- Textos editables de la web pública (portada, «Qui som», contacto).
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
@@ -150,6 +170,7 @@ function openDb(file) {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.exec(SCHEMA);
+  migrate(db);
 
   const count = db.prepare('SELECT COUNT(*) AS n FROM categories').get().n;
   if (count === 0) {
@@ -158,6 +179,26 @@ function openDb(file) {
   }
   ensureAdmin(db);
   return db;
+}
+
+/** Columnas añadidas después de la primera versión (las bases de datos existentes se actualizan solas). */
+const COLUMNS = [
+  ['products', 'colors', 'TEXT'],          // colores separados por comas (la familia elige uno)
+  ['products', 'options', 'TEXT'],         // otras opciones separadas por comas (ej.: escudo, pollito)
+  ['products', 'size_guide', 'TEXT'],      // imagen con la guía de tallas
+  ['cart_items', 'color', 'TEXT'],
+  ['cart_items', 'option_value', 'TEXT'],
+  ['order_items', 'color', 'TEXT'],
+  ['order_items', 'option_value', 'TEXT'],
+  // 'product' = artículo; 'pack' = descuento de un pack (importe negativo); 'gift' = regalo de un pack (0 €)
+  ['order_items', 'kind', "TEXT NOT NULL DEFAULT 'product'"],
+];
+
+function migrate(db) {
+  for (const [table, column, type] of COLUMNS) {
+    const exists = db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+    if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
 }
 
 /**

@@ -38,7 +38,7 @@
     <tbody>
     <% items.forEach(it => { %>
       <tr>
-        <td><%= loc(it, 'product_name') %><br><span class="muted small"><%= formatMoney(it.unit_price_cents) %>/<%= t('u.') %></span></td>
+        <td><%- include('../partials/line-name', { it }) %><% if (it.kind === 'product') { %><br><span class="muted small"><%= formatMoney(it.unit_price_cents) %>/<%= t('u.') %></span><% } %></td>
         <td class="small" data-label="<%= t('Detalles') %>"><%- include('../partials/items', { it }) %></td>
         <td data-label="<%= t('Cantidad') %>"><%= it.quantity %></td>
         <td class="num" data-label="<%= t('Importe') %>"><%= formatMoney(it.unit_price_cents * it.quantity) %></td>

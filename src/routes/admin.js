@@ -79,7 +79,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
   router.get('/pedidos', (req, res) => {
     const { sql, params } = orderFilters(req.query);
     const list = db.prepare(`SELECT o.*, u.player_name, u.dni, u.player_number, u.email,
-        (SELECT SUM(quantity) FROM order_items WHERE order_id = o.id) AS units
+        (SELECT SUM(quantity) FROM order_items WHERE order_id = o.id AND kind != 'pack') AS units
       FROM orders o JOIN users u ON u.id = o.user_id ${sql} ORDER BY o.id DESC`).all(...params);
     const total = list.reduce((s, o) => s + o.total_cents, 0);
     const periods = db.prepare('SELECT * FROM periods ORDER BY starts_at DESC').all();
@@ -90,7 +90,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
   router.get('/pedidos.csv', (req, res) => {
     const { sql, params } = orderFilters(req.query);
     const rows = db.prepare(`SELECT o.id, o.status, o.created_at, o.paid_at, o.delivered_at, u.player_name, u.dni,
-        u.email, i.product_name, i.size, i.custom_name, i.custom_number, i.quantity, i.unit_price_cents,
+        u.email, i.kind, i.product_name, i.color, i.option_value, i.size, i.custom_name, i.custom_number, i.quantity, i.unit_price_cents,
         c.username AS collector
       FROM orders o JOIN users u ON u.id = o.user_id JOIN order_items i ON i.order_id = o.id
       LEFT JOIN users c ON c.id = o.paid_by
@@ -98,10 +98,12 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     const t = req.t;
     const fd = (iso) => formatDate(iso, true, req.lang);
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const header = ['Pedido', 'Estado', 'Fecha', 'Pagado', 'Cobrado por', 'Entregado', 'Jugador/a', 'DNI', 'Correo', 'Producto', 'Talla',
-      'Nombre', 'Dorsal', 'Cantidad', 'Precio unidad', 'Importe'].map((h) => t(h));
+    const header = ['Pedido', 'Estado', 'Fecha', 'Pagado', 'Cobrado por', 'Entregado', 'Jugador/a', 'DNI', 'Correo', 'Tipo', 'Producto',
+      'Color', 'Opción', 'Talla', 'Nombre', 'Número', 'Cantidad', 'Precio unidad', 'Importe'].map((h) => t(h));
+    const kindLabel = { product: 'Artículo', pack: 'Descuento', gift: 'Regalo' };
     const lines = rows.map((r) => [orderCode(r.id), t(STATUS[r.status].label), fd(r.created_at), fd(r.paid_at), r.collector,
-      fd(r.delivered_at), r.player_name, r.dni, r.email, r.product_name, r.size, r.custom_name, r.custom_number,
+      fd(r.delivered_at), r.player_name, r.dni, r.email, t(kindLabel[r.kind] || 'Artículo'), r.product_name, r.color, r.option_value,
+      r.size, r.custom_name, r.custom_number,
       r.quantity, (r.unit_price_cents / 100).toFixed(2).replace('.', ','),
       ((r.unit_price_cents * r.quantity) / 100).toFixed(2).replace('.', ',')].map(esc).join(';'));
     res.set('Content-Type', 'text/csv; charset=utf-8');
@@ -220,17 +222,22 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     const marks = chosen.map(() => '?').join(',');
     const periodSql = req.query.periodo ? 'AND o.period_id = ?' : '';
     const params = [...chosen, ...(req.query.periodo ? [Number(req.query.periodo)] : [])];
-    const lines = db.prepare(`SELECT i.product_name, MAX(i.product_name_ca) AS product_name_ca, i.size, SUM(i.quantity) AS qty, SUM(i.quantity * i.unit_price_cents) AS amount
+    // Unidades para el proveedor: artículos y regalos (los descuentos de pack no son unidades).
+    const lines = db.prepare(`SELECT i.product_name, MAX(i.product_name_ca) AS product_name_ca, i.color, i.option_value, i.size,
+        SUM(i.quantity) AS qty, SUM(i.quantity * i.unit_price_cents) AS amount
       FROM order_items i JOIN orders o ON o.id = i.order_id
-      WHERE o.status IN (${marks}) ${periodSql}
-      GROUP BY i.product_name, i.size ORDER BY i.product_name, i.size`).all(...params);
-    const custom = db.prepare(`SELECT i.product_name, i.product_name_ca, i.size, i.custom_name, i.custom_number, i.quantity, o.id AS order_id,
+      WHERE i.kind != 'pack' AND o.status IN (${marks}) ${periodSql}
+      GROUP BY i.product_name, i.color, i.option_value, i.size ORDER BY i.product_name, i.color, i.option_value, i.size`).all(...params);
+    const discount = db.prepare(`SELECT COALESCE(SUM(i.quantity * i.unit_price_cents), 0) AS amount
+      FROM order_items i JOIN orders o ON o.id = i.order_id
+      WHERE i.kind = 'pack' AND o.status IN (${marks}) ${periodSql}`).get(...params).amount;
+    const custom = db.prepare(`SELECT i.product_name, i.product_name_ca, i.color, i.option_value, i.size, i.custom_name, i.custom_number, i.quantity, o.id AS order_id,
         o.status, u.player_name
       FROM order_items i JOIN orders o ON o.id = i.order_id JOIN users u ON u.id = o.user_id
       WHERE i.custom_name IS NOT NULL AND o.status IN (${marks}) ${periodSql}
       ORDER BY i.product_name, CAST(i.custom_number AS INTEGER)`).all(...params);
     const periods = db.prepare('SELECT * FROM periods ORDER BY starts_at DESC').all();
-    res.render('admin/summary', { title: 'Resumen de pedidos', lines, custom, chosen, periods, periodo: req.query.periodo || '' });
+    res.render('admin/summary', { title: 'Resumen de pedidos', lines, discount, custom, chosen, periods, periodo: req.query.periodo || '' });
   });
 
   // ---------- Productos ----------
@@ -263,6 +270,8 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       price_cents: parseMoney(b.price),
       personalization: b.personalization ? 1 : 0,
       sizes: String(b.sizes || '').split(',').map((s) => s.trim()).filter(Boolean).join(', ') || null,
+      colors: String(b.colors || '').split(',').map((s) => s.trim()).filter(Boolean).join(', ') || null,
+      options: String(b.options || '').split(',').map((s) => s.trim()).filter(Boolean).join(', ') || null,
       active: b.active ? 1 : 0,
     };
     if (!data.name) return { error: 'El nombre es obligatorio.', data };
@@ -274,36 +283,49 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     if (filename) fs.promises.unlink(path.join(uploadDir, path.basename(filename))).catch(() => {});
   }
 
-  router.post('/productos', upload.single('image'), (req, res) => {
+  const productUpload = upload.fields([{ name: 'image', maxCount: 1 }, { name: 'size_guide', maxCount: 1 }]);
+  const uploaded = (req, field) => req.files?.[field]?.[0]?.filename || null;
+
+  router.post('/productos', productUpload, (req, res) => {
     const { error, data } = readProduct(req);
     if (error) {
-      removeUpload(req.file?.filename);
+      removeUpload(uploaded(req, 'image'));
+      removeUpload(uploaded(req, 'size_guide'));
       return res.status(400).render('admin/product-form', { title: 'Nuevo producto', product: data, categories: categories(), error });
     }
     const info = db.prepare(`INSERT INTO products (name, name_ca, description, description_ca, category_id, price_cents,
-        personalization, sizes, active, image)
-      VALUES (@name, @name_ca, @description, @description_ca, @category_id, @price_cents, @personalization, @sizes, @active, @image)`)
-      .run({ ...data, image: req.file?.filename || null });
+        personalization, sizes, colors, options, active, image, size_guide)
+      VALUES (@name, @name_ca, @description, @description_ca, @category_id, @price_cents, @personalization, @sizes, @colors,
+        @options, @active, @image, @size_guide)`)
+      .run({ ...data, image: uploaded(req, 'image'), size_guide: uploaded(req, 'size_guide') });
     flash(req, 'ok', 'Producto creado.');
     res.redirect(`/admin/productos/${info.lastInsertRowid}`);
   });
 
-  router.post('/productos/:id', upload.single('image'), (req, res) => {
+  router.post('/productos/:id', productUpload, (req, res) => {
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(Number(req.params.id));
     if (!product) return res.status(404).render('error', { title: 'No encontrado', message: 'Ese producto no existe.' });
     const { error, data } = readProduct(req);
     if (error) {
-      removeUpload(req.file?.filename);
+      removeUpload(uploaded(req, 'image'));
+      removeUpload(uploaded(req, 'size_guide'));
       return res.status(400).render('admin/product-form', {
         title: 'Editar producto', product: { ...product, ...data }, categories: categories(), error,
       });
     }
-    let image = product.image;
-    if (req.file) { removeUpload(product.image); image = req.file.filename; } else if (req.body.remove_image) { removeUpload(product.image); image = null; }
+    const replaceFile = (field, current, removeFlag) => {
+      const fresh = uploaded(req, field);
+      if (fresh) { removeUpload(current); return fresh; }
+      if (req.body[removeFlag]) { removeUpload(current); return null; }
+      return current;
+    };
+    const image = replaceFile('image', product.image, 'remove_image');
+    const sizeGuide = replaceFile('size_guide', product.size_guide, 'remove_size_guide');
     db.prepare(`UPDATE products SET name = @name, name_ca = @name_ca, description = @description,
       description_ca = @description_ca, category_id = @category_id,
-      price_cents = @price_cents, personalization = @personalization, sizes = @sizes, active = @active, image = @image
-      WHERE id = @id`).run({ ...data, image, id: product.id });
+      price_cents = @price_cents, personalization = @personalization, sizes = @sizes, colors = @colors, options = @options,
+      active = @active, image = @image, size_guide = @size_guide
+      WHERE id = @id`).run({ ...data, image, size_guide: sizeGuide, id: product.id });
     flash(req, 'ok', 'Producto guardado. Los pedidos ya hechos mantienen el precio con el que se pidieron.');
     res.redirect(`/admin/productos/${product.id}`);
   });
@@ -313,6 +335,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     if (product) {
       db.prepare('DELETE FROM products WHERE id = ?').run(product.id);
       removeUpload(product.image);
+      removeUpload(product.size_guide);
       flash(req, 'ok', 'Producto «{name}» eliminado. Los pedidos existentes no se ven afectados.', { name: product.name });
     }
     res.redirect('/admin/productos');
@@ -404,6 +427,106 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     db.prepare('DELETE FROM periods WHERE id = ?').run(Number(req.params.id));
     flash(req, 'ok', 'Periodo eliminado.');
     res.redirect('/admin/periodos');
+  });
+
+  // ---------- Packs ----------
+  const allProducts = () => db.prepare(`SELECT p.*, c.sort_order FROM products p LEFT JOIN categories c ON c.id = p.category_id
+    ORDER BY p.active DESC, c.sort_order, p.name`).all();
+  const packItems = (packId) => db.prepare(`SELECT pi.*, p.name, p.name_ca, p.price_cents, p.active FROM pack_items pi
+    JOIN products p ON p.id = pi.product_id WHERE pi.pack_id = ? ORDER BY pi.gift, p.name`).all(packId);
+
+  router.get('/packs', (req, res) => {
+    const list = db.prepare('SELECT * FROM packs ORDER BY active DESC, price_cents, id').all()
+      .map((pack) => ({ ...pack, items: packItems(pack.id) }));
+    res.render('admin/packs', { title: 'Packs', list });
+  });
+
+  router.get('/packs/nuevo', (req, res) => {
+    res.render('admin/pack-form', { title: 'Nuevo pack', pack: { active: 1 }, chosen: {}, products: allProducts() });
+  });
+
+  router.get('/packs/:id', (req, res) => {
+    const pack = db.prepare('SELECT * FROM packs WHERE id = ?').get(Number(req.params.id));
+    if (!pack) return res.status(404).render('error', { title: 'No encontrado', message: 'Ese pack no existe.' });
+    const chosen = Object.fromEntries(packItems(pack.id).map((i) => [i.product_id, i.gift ? 'gift' : 'in']));
+    res.render('admin/pack-form', { title: 'Editar pack', pack, chosen, products: allProducts() });
+  });
+
+  /** Lee el formulario de pack. Cada producto llega como item_<id> = '' | 'in' | 'gift'. */
+  function readPack(req) {
+    const b = req.body;
+    const data = {
+      name: String(b.name || '').trim().slice(0, 100),
+      name_ca: String(b.name_ca || '').trim().slice(0, 100) || null,
+      description: String(b.description || '').trim().slice(0, 1000) || null,
+      description_ca: String(b.description_ca || '').trim().slice(0, 1000) || null,
+      price_cents: parseMoney(b.price),
+      active: b.active ? 1 : 0,
+    };
+    const chosen = {};
+    for (const p of allProducts()) {
+      const v = b[`item_${p.id}`];
+      if (v === 'in' || v === 'gift') chosen[p.id] = v;
+    }
+    let error = null;
+    if (!data.name) error = 'El nombre es obligatorio.';
+    else if (data.price_cents === null) error = 'Precio no válido (ej.: 25 o 12,50).';
+    else if (!Object.values(chosen).includes('in')) error = 'Elige al menos un producto del pack (que no sea de regalo).';
+    return { error, data, chosen };
+  }
+
+  const savePackItems = (packId, chosen) => {
+    db.prepare('DELETE FROM pack_items WHERE pack_id = ?').run(packId);
+    const insert = db.prepare('INSERT INTO pack_items (pack_id, product_id, gift) VALUES (?, ?, ?)');
+    for (const [productId, v] of Object.entries(chosen)) insert.run(packId, Number(productId), v === 'gift' ? 1 : 0);
+  };
+
+  router.post('/packs', upload.single('image'), (req, res) => {
+    const { error, data, chosen } = readPack(req);
+    if (error) {
+      removeUpload(req.file?.filename);
+      return res.status(400).render('admin/pack-form', { title: 'Nuevo pack', pack: data, chosen, products: allProducts(), error });
+    }
+    const id = db.transaction(() => {
+      const info = db.prepare(`INSERT INTO packs (name, name_ca, description, description_ca, price_cents, active, image)
+        VALUES (@name, @name_ca, @description, @description_ca, @price_cents, @active, @image)`)
+        .run({ ...data, image: req.file?.filename || null });
+      savePackItems(info.lastInsertRowid, chosen);
+      return info.lastInsertRowid;
+    })();
+    flash(req, 'ok', 'Pack creado.');
+    res.redirect(`/admin/packs/${id}`);
+  });
+
+  router.post('/packs/:id', upload.single('image'), (req, res) => {
+    const pack = db.prepare('SELECT * FROM packs WHERE id = ?').get(Number(req.params.id));
+    if (!pack) return res.status(404).render('error', { title: 'No encontrado', message: 'Ese pack no existe.' });
+    const { error, data, chosen } = readPack(req);
+    if (error) {
+      removeUpload(req.file?.filename);
+      return res.status(400).render('admin/pack-form', {
+        title: 'Editar pack', pack: { ...pack, ...data }, chosen, products: allProducts(), error,
+      });
+    }
+    let image = pack.image;
+    if (req.file) { removeUpload(pack.image); image = req.file.filename; } else if (req.body.remove_image) { removeUpload(pack.image); image = null; }
+    db.transaction(() => {
+      db.prepare(`UPDATE packs SET name = @name, name_ca = @name_ca, description = @description, description_ca = @description_ca,
+        price_cents = @price_cents, active = @active, image = @image WHERE id = @id`).run({ ...data, image, id: pack.id });
+      savePackItems(pack.id, chosen);
+    })();
+    flash(req, 'ok', 'Pack guardado. Los pedidos ya hechos no cambian.');
+    res.redirect(`/admin/packs/${pack.id}`);
+  });
+
+  router.post('/packs/:id/eliminar', (req, res) => {
+    const pack = db.prepare('SELECT * FROM packs WHERE id = ?').get(Number(req.params.id));
+    if (pack) {
+      db.prepare('DELETE FROM packs WHERE id = ?').run(pack.id);
+      removeUpload(pack.image);
+      flash(req, 'ok', 'Pack «{name}» eliminado. Los pedidos existentes no se ven afectados.', { name: pack.name });
+    }
+    res.redirect('/admin/packs');
   });
 
   // ---------- Textos de la web pública ----------

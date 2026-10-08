@@ -5,7 +5,7 @@
 </div>
 <div class="card table-wrap">
   <table class="table">
-    <thead><tr><th></th><th><%= t('Producto') %></th><th><%= t('Categoría') %></th><th class="num"><%= t('Precio') %></th><th><%= t('Tallas') %></th><th><%= t('Nombre + dorsal') %></th><th><%= t('Visible') %></th></tr></thead>
+    <thead><tr><th></th><th><%= t('Producto') %></th><th><%= t('Categoría') %></th><th class="num"><%= t('Precio') %></th><th><%= t('Colores') %> / <%= t('Tallas') %></th><th><%= t('Nombre + número') %></th><th><%= t('Visible') %></th></tr></thead>
     <tbody>
     <% list.forEach(p => { %>
       <tr class="<%= p.active ? '' : 'unavailable' %>">
@@ -13,7 +13,7 @@
         <td><a href="/admin/productos/<%= p.id %>"><strong><%= loc(p, 'name') %></strong></a></td>
         <td><%= lang === 'ca' && p.category_ca ? p.category_ca : (p.category || '—') %></td>
         <td class="num"><%= formatMoney(p.price_cents) %></td>
-        <td class="small"><%= p.sizes || '—' %></td>
+        <td class="small"><%= [p.colors, p.sizes].filter(Boolean).join(' · ') || '—' %></td>
         <td><%= p.personalization ? t('Sí') : t('No') %></td>
         <td><%= p.active ? t('Sí') : t('Oculto') %></td>
       </tr>

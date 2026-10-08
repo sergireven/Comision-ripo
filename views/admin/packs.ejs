@@ -1,0 +1,26 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <h1><%= t('Packs') %></h1>
+  <a class="btn primary" href="/admin/packs/nuevo">+ <%= t('Nuevo pack') %></a>
+</div>
+<p class="muted"><%= t('Un pack agrupa varios productos a un precio especial. En el carrito se aplica solo: aunque la familia añada los productos por separado, se le cobra el precio del pack.') %></p>
+<div class="card table-wrap">
+  <table class="table">
+    <thead><tr><th></th><th><%= t('Pack') %></th><th><%= t('Productos') %></th><th class="num"><%= t('Precio') %></th><th class="num"><%= t('Por separado') %></th><th><%= t('Visible') %></th></tr></thead>
+    <tbody>
+    <% list.forEach(pk => { const regular = pk.items.filter(i => !i.gift).reduce((s, i) => s + i.price_cents, 0); %>
+      <tr class="<%= pk.active ? '' : 'unavailable' %>">
+        <td><% if (pk.image) { %><img class="thumb" src="/uploads/<%= pk.image %>" alt=""><% } %></td>
+        <td><a href="/admin/packs/<%= pk.id %>"><strong><%= loc(pk, 'name') %></strong></a></td>
+        <td class="small"><%= pk.items.map(i => (i.gift ? '🎁 ' : '') + loc(i, 'name')).join(' + ') || '—' %>
+          <% if (pk.items.some(i => !i.active)) { %><br><span class="badge warn"><%= t('Tiene productos ocultos: no se muestra') %></span><% } %></td>
+        <td class="num"><strong><%= formatMoney(pk.price_cents) %></strong></td>
+        <td class="num"><%= formatMoney(regular) %><% if (regular > pk.price_cents) { %><br><span class="badge ok">−<%= formatMoney(regular - pk.price_cents) %></span><% } else { %><br><span class="badge warn"><%= t('Sin descuento') %></span><% } %></td>
+        <td><%= pk.active ? t('Sí') : t('Oculto') %></td>
+      </tr>
+    <% }) %>
+    <% if (!list.length) { %><tr><td colspan="6" class="center muted"><%= t('Aún no hay packs. Crea el primero.') %></td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/footer') %>
