@@ -76,7 +76,7 @@ Se puede repetir: los artículos y packs se actualizan por nombre y los producto
 
 ## Puesta en marcha
 
-Requisitos: Node.js 20 o superior.
+Requisitos: Node.js 22 o superior.
 
 ```bash
 npm install

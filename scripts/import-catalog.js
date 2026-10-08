@@ -2,22 +2,31 @@
 //   npm run import-catalog -- catalogo.json img
 // Se puede repetir: los artículos y packs se actualizan por nombre (castellano). Los productos que no
 // están en el catálogo se ocultan (no se borran, para no afectar a pedidos antiguos).
+// Con --si-vacio solo carga si la tienda aún no tiene productos (se usa al arrancar en Railway, para no
+// pisar los cambios que la comisión haga después desde el panel).
 require('dotenv').config({ quiet: true });
+require('../src/platform').applyPlatformDefaults();
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { openDb } = require('../src/db');
 const { slugify } = require('../src/util');
 
-const [jsonFile, imgDir = 'img'] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const onlyIfEmpty = args.includes('--si-vacio');
+const [jsonFile, imgDir = 'img'] = args.filter((a) => !a.startsWith('--'));
 if (!jsonFile) {
-  console.error('Uso: npm run import-catalog -- catalogo.json [carpeta-de-imagenes]');
+  console.error('Uso: npm run import-catalog -- catalogo.json [carpeta-de-imagenes] [--si-vacio]');
   process.exit(1);
 }
-const catalog = JSON.parse(fs.readFileSync(jsonFile, 'utf8'));
 const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
 const db = openDb();
+if (onlyIfEmpty && db.prepare('SELECT 1 FROM products LIMIT 1').get()) {
+  console.log('La tienda ya tiene productos: no se carga el catálogo.');
+  process.exit(0);
+}
+const catalog = JSON.parse(fs.readFileSync(jsonFile, 'utf8'));
 
 const cents = (v) => Math.round(Number(String(v).replace(',', '.')) * 100);
 const list = (v) => String(v ?? '').split(',').map((s) => s.trim()).filter(Boolean);

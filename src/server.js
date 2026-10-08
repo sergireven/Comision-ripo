@@ -1,4 +1,5 @@
 require('dotenv').config({ quiet: true });
+require('./platform').applyPlatformDefaults();
 
 const { openDb } = require('./db');
 const { createApp } = require('./app');
