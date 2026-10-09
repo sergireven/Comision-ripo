@@ -8,7 +8,7 @@
 <% if (order.status === 'pendiente_pago') { %>
   <div class="card qr-card center pay">
     <span class="qr-kind"><%= t('QR del pedido') %></span>
-    <p><%= t('Importe a pagar en mano a la comisión') %>: <strong class="big-amount"><%= formatMoney(order.total_cents) %></strong></p>
+    <p><%= t('Importe a pagar en efectivo a la comisión') %>: <strong class="big-amount"><%= formatMoney(order.total_cents) %></strong></p>
     <img src="<%= qr %>" alt="<%= t('QR del pedido') %>" width="240" height="240">
     <p class="small"><%= t('Enseña este QR cuando pagues y también cuando recojas el material. Lo tienes aquí y en el correo del pedido.') %></p>
   </div>

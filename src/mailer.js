@@ -166,8 +166,8 @@ function createMailer(db, { fetchImpl } = {}) {
       send(user.email, t('Pedido {code} recibido', { code }),
         `${t('Hola,')}\n\n${t('Hemos recibido el pedido {code} de {name}.', { code, name: who(user) })}\n\n`
         + `${itemsText(lang, items)}\n\n${t('Total a pagar')}: ${formatMoney(order.total_cents)}\n\n`
-        + `${t('Estado: PENDIENTE DE PAGO. El pago se hace en mano a la comisión.')}\n`
-        + `${t('Enseña este QR cuando pagues y también cuando vayas a recoger el material: es el único que necesitas.')}\n`
+        + `${t('Estado: PENDIENTE DE PAGO. El pago se realiza en efectivo a la comisión.')}\n`
+        + `${t('Enseña este QR cuando pagues y también cuando vayas a recoger el material: es lo único que necesitas.')}\n`
         + `${t('Mientras no esté pagado puedes cancelarlo desde la web.')}\n\n`
         + t('Consulta tus pedidos en {url}', { url: `${appUrl}/pedidos` }),
         { lang, qr: qrUrl(appUrl, order.pay_token), qrCaption: t('QR del pedido {code}', { code }) });
@@ -188,7 +188,7 @@ function createMailer(db, { fetchImpl } = {}) {
       const tail = `\n\n${t('Pedido {code} · {name}', { code, name: who(user) })}`;
       if (order.status === 'pendiente_entrega') {
         send(user.email, subject,
-          `${intro}${t('COMPROBANTE DE PAGO')}\n${t('Hemos recibido {amount} en mano', { amount: formatMoney(order.total_cents) })}`
+          `${intro}${t('COMPROBANTE DE PAGO')}\n${t('Hemos recibido {amount} en efectivo', { amount: formatMoney(order.total_cents) })}`
           + `${collector ? ` (${t('registrado por {who}', { who: collector })})` : ''} · ${new Date(order.paid_at).toLocaleString(lang === 'ca' ? 'ca-ES' : 'es-ES', { timeZone: 'Europe/Madrid' })}.\n\n`
           + `${t('El pedido está PENDIENTE DE ENTREGA. Te avisaremos cuando esté listo para recoger.')}\n`
           + `${t('Para recogerlo, enseña este QR a la comisión.')}${tail}`,
