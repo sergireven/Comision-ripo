@@ -593,3 +593,38 @@ test('eliminar un pedido de prueba, aunque esté entregado', async () => {
   await adm.post('/admin/clientes/2/eliminar').type('form').send({ _csrf: c });
   assert.strictEqual(count("users WHERE role = 'family'"), 0);
 });
+
+test('errores encontrados en las pruebas E2E: CSRF tras el alta, productos ocultos y total de la lista', async () => {
+  const { db, app } = setup();
+  db.prepare("INSERT INTO products (name, price_cents) VALUES ('Bufanda', 1000)").run();
+  db.prepare("INSERT INTO products (name, price_cents) VALUES ('Gorra', 800)").run();
+  openPeriod(db);
+
+  // 1. Justo después del alta, los formularios de esa página llevan el token de la sesión nueva.
+  const anon = request.agent(app);
+  let _csrf = await csrfOf(anon, '/registro');
+  let res = await anon.post('/registro').type('form').send({ _csrf, name: 'Marc Soler', email: 'marc@example.com', email2: 'marc@example.com' });
+  const fresh = /name="_csrf" value="([0-9a-f]+)"/.exec(res.text)[1];
+  res = await anon.post('/carrito/anadir').type('form').send({ _csrf: fresh, product_id: 1, quantity: 1 });
+  assert.strictEqual(res.status, 302, 'el primer «Añadir» después del alta funciona');
+  assert.strictEqual(db.prepare('SELECT COUNT(*) AS n FROM cart_items').get().n, 1);
+
+  // 2. Un producto ocultado que está en el carrito no suma al total.
+  await anon.post('/carrito/anadir').type('form').send({ _csrf: fresh, product_id: 2, quantity: 1 });
+  db.prepare('UPDATE products SET active = 0 WHERE id = 2').run();
+  res = await anon.get('/carrito');
+  assert.match(res.text, /grand"><span>[^<]+<\/span><span>10,00/);
+
+  // 3. El total de la lista de pedidos no cuenta los cancelados.
+  db.prepare('UPDATE products SET active = 1 WHERE id = 2').run();
+  await anon.post('/carrito/confirmar').type('form').send({ _csrf: fresh }); // 18 €
+  await anon.post('/carrito/anadir').type('form').send({ _csrf: fresh, product_id: 1, quantity: 1 });
+  await anon.post('/carrito/confirmar').type('form').send({ _csrf: fresh }); // 10 €
+  await anon.post('/pedidos/2/cancelar').type('form').send({ _csrf: fresh });
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  res = await adm.get('/admin/pedidos');
+  assert.match(res.text.replace(/\u00a0/g, ' '), /total <strong>18,00 €<\/strong>/);
+  res = await adm.get('/admin/pedidos?estado=cancelado');
+  assert.match(res.text.replace(/\u00a0/g, ' '), /total <strong>10,00 €<\/strong>/);
+});

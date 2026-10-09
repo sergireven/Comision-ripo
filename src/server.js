@@ -15,5 +15,5 @@ const port = Number(process.env.PORT || 3000);
 
 app.listen(port, () => {
   console.log(`Tienda del club escuchando en http://localhost:${port}`);
-  if (!process.env.SMTP_HOST) console.log('Aviso: SMTP no configurado; los correos solo se guardan en Admin > Correos.');
+  if (!process.env.BREVO_API_KEY && !process.env.SMTP_HOST) console.log('Aviso: correo no configurado (ni BREVO_API_KEY ni SMTP_HOST); los correos solo se guardan en Admin > Correos.');
 });

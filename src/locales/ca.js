@@ -667,4 +667,5 @@ module.exports = {
   "¿Eliminar el pedido {code} para siempre? No se puede deshacer.": "Eliminar la comanda {code} per sempre? No es pot desfer.",
   "Eliminar pedido": "Eliminar comanda",
   "Para borrar pedidos de prueba. Desaparece de las listas, la caja y el resumen.": "Per esborrar comandes de prova. Desapareix de les llistes, la caixa i el resum.",
+  "sin contar {n} cancelado(s)": "sense comptar {n} cancel·lada(es)",
 };

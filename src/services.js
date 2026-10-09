@@ -44,7 +44,8 @@ function createOrderService(db) {
    */
   function cart(userId) {
     const items = getCart.all(userId);
-    const subtotal = items.reduce((sum, it) => sum + it.price_cents * it.quantity, 0);
+    // Los productos que ya no están disponibles no suman: se avisa en el carrito y hay que quitarlos para confirmar.
+    const subtotal = items.filter((it) => it.active).reduce((sum, it) => sum + it.price_cents * it.quantity, 0);
     const counts = {};
     const prices = {};
     for (const it of items.filter((i) => i.active)) {

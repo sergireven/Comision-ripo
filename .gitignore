@@ -3,3 +3,4 @@ data/*.db*
 uploads/*
 !uploads/.gitkeep
 .env
+data-e2e/

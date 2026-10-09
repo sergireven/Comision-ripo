@@ -36,7 +36,7 @@
   </form>
 <% } %>
 
-<p class="muted"><%= t('{n} pedido(s)', { n: list.length }) %> · <%= t('total') %> <strong><%= formatMoney(total) %></strong></p>
+<p class="muted"><%= t('{n} pedido(s)', { n: list.length }) %> · <%= t('total') %> <strong><%= formatMoney(total) %></strong><% if (cancelled && q.estado !== 'cancelado') { %> <span class="small">(<%= t('sin contar {n} cancelado(s)', { n: cancelled }) %>)</span><% } %></p>
 <div class="card table-wrap">
   <table class="table">
     <thead><tr><th><%= t('Pedido') %></th><th><%= t('Cliente') %></th><th><%= t('Fecha') %></th><th><%= t('Art.') %></th><th class="num"><%= t('Importe') %></th><th><%= t('Estado') %></th><th><%= t('Acción rápida') %></th></tr></thead>

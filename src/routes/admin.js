@@ -81,10 +81,13 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     const list = db.prepare(`SELECT o.*, u.player_name, u.email,
         (SELECT SUM(quantity) FROM order_items WHERE order_id = o.id AND kind != 'pack') AS units
       FROM orders o JOIN users u ON u.id = o.user_id ${sql} ORDER BY o.id DESC`).all(...params);
-    const total = list.reduce((s, o) => s + o.total_cents, 0);
+    // El total no cuenta los cancelados (salvo si se filtra por cancelados).
+    const counted = req.query.estado === 'cancelado' ? list : list.filter((o) => o.status !== 'cancelado');
+    const total = counted.reduce((s, o) => s + o.total_cents, 0);
+    const cancelled = list.filter((o) => o.status === 'cancelado').length;
     const periods = db.prepare('SELECT * FROM periods ORDER BY starts_at DESC').all();
     const toNotify = list.filter((o) => o.status === 'pendiente_entrega' && !o.ready_at).length;
-    res.render('admin/orders', { title: 'Pedidos', list, total, periods, q: req.query, toNotify });
+    res.render('admin/orders', { title: 'Pedidos', list, total, cancelled, periods, q: req.query, toNotify });
   });
 
   router.get('/pedidos.csv', (req, res) => {

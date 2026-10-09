@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { flash, requireLogin, rateLimit } = require('../middleware');
@@ -20,6 +21,9 @@ module.exports = function authRoutes({ db, mailer }) {
     req.session.regenerate((err) => {
       if (err) return cb(err);
       req.session.userId = user.id;
+      // Sesión nueva = token CSRF nuevo; si se pinta una página ahora, sus formularios ya llevan el bueno.
+      req.session.csrf = crypto.randomBytes(24).toString('hex');
+      if (req.res) req.res.locals.csrf = req.session.csrf;
       cb(null, returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : homeOf(user));
     });
   }
