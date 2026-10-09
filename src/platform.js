@@ -15,6 +15,8 @@ function applyPlatformDefaults(env = process.env) {
     setDefault('DB_PATH', path.join(volume, 'club.db'));
     setDefault('UPLOAD_DIR', path.join(volume, 'uploads'));
   }
+  // Un APP_URL a localhost (copiado del .env de ejemplo) rompería los enlaces de los correos.
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(env.APP_URL || '')) delete env.APP_URL;
   if (env.RAILWAY_PUBLIC_DOMAIN) setDefault('APP_URL', `https://${env.RAILWAY_PUBLIC_DOMAIN}`);
   setDefault('TRUST_PROXY', '1');
   setDefault('COOKIE_SECURE', 'true');
