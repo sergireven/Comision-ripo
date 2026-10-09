@@ -159,6 +159,15 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     res.redirect(back);
   });
 
+  // Borrar un pedido (p. ej. de prueba) con sus líneas e historial, esté como esté. No se avisa por correo.
+  router.post('/pedidos/:id/eliminar', (req, res) => {
+    const order = orders.getOrder(Number(req.params.id));
+    if (!order) return res.redirect('/admin/pedidos');
+    db.prepare('DELETE FROM orders WHERE id = ?').run(order.id);
+    flash(req, 'ok', 'Pedido {code} eliminado.', { code: orderCode(order.id) });
+    res.redirect('/admin/pedidos');
+  });
+
   // ---------- Escáner: el QR del pedido sirve para cobrar y para entregar ----------
   router.get('/escanear', (req, res) => {
     res.render('admin/scan', { title: 'Escanear' });

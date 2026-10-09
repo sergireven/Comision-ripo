@@ -18,7 +18,7 @@ El pago se hace en mano a la comisión. La web controla qué ha pedido cada pers
 
 **Comisión (admin)**
 - **Panel**: pedidos por estado, dinero cobrado y pendiente de cobrar, clientes registrados.
-- **Pedidos**: filtros por estado, periodo y búsqueda (correo o nº de pedido); botones rápidos «Marcar pagado» y «Marcar entregado»; exportación a Excel (CSV); historial de cada pedido con quién hizo cada cambio.
+- **Pedidos**: filtros por estado, periodo y búsqueda (correo o nº de pedido); botones rápidos «Marcar pagado» y «Marcar entregado»; exportación a Excel (CSV); historial de cada pedido con quién hizo cada cambio; «Eliminar pedido» para borrar pedidos de prueba.
 - **Escanear**: lector de QR dentro de la propia web (cámara del móvil) o con la cámara normal del móvil. Ver «Pago y entrega con QR».
 - **Caja por persona**: cuánto ha cobrado cada miembro de la comisión, para cuadrar el dinero en mano.
 - **Aviso «listo para recoger»**: cuando llega el material, un botón envía a todos los pedidos pagados un correo con su QR y un mensaje (día, hora y lugar).

@@ -565,3 +565,31 @@ test('cuentas antiguas sin nombre: lo piden antes de confirmar el pedido', async
   res = await adm.get('/admin/pedidos');
   assert.match(res.text, /Laia Puig/);
 });
+
+test('eliminar un pedido de prueba, aunque esté entregado', async () => {
+  const { db, app } = setup();
+  db.prepare("INSERT INTO products (name, price_cents) VALUES ('Bufanda', 1000)").run();
+  openPeriod(db);
+  const fam = request.agent(app);
+  await login(fam, 'laia@example.com', 'clave-familia');
+  const _csrf = await csrfOf(fam, '/tienda');
+  for (let i = 0; i < 2; i++) {
+    await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: 1, quantity: 1 });
+    await fam.post('/carrito/confirmar').type('form').send({ _csrf });
+  }
+  const count = (table) => db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  const c = await csrfOf(adm, '/admin/pedidos/1');
+  await adm.post('/admin/pedidos/1/estado').type('form').send({ _csrf: c, status: 'pendiente_entrega' });
+  await adm.post('/admin/pedidos/1/estado').type('form').send({ _csrf: c, status: 'entregado' });
+  assert.match((await adm.get('/admin/pedidos/1')).text, /\/admin\/pedidos\/1\/eliminar/);
+  await adm.post('/admin/pedidos/1/eliminar').type('form').send({ _csrf: c });
+  assert.strictEqual(count('orders'), 1);
+  assert.strictEqual(count('order_items WHERE order_id = 1'), 0);
+  assert.strictEqual(count('order_events WHERE order_id = 1'), 0);
+  // La clienta, sin pedidos, ya se puede eliminar
+  await adm.post('/admin/pedidos/2/eliminar').type('form').send({ _csrf: c });
+  await adm.post('/admin/clientes/2/eliminar').type('form').send({ _csrf: c });
+  assert.strictEqual(count("users WHERE role = 'family'"), 0);
+});

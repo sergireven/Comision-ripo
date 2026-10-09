@@ -661,4 +661,10 @@ module.exports = {
   "Guardar nombre": "Desar el nom",
   "Nombre guardado.": "Nom desat.",
   "Antes de hacer el pedido, dinos tu nombre y apellidos:": "Abans de fer la comanda, digues-nos el teu nom i cognoms:",
+
+  // --- Eliminar pedidos cancelados ---
+  "Pedido {code} eliminado.": "Comanda {code} eliminada.",
+  "¿Eliminar el pedido {code} para siempre? No se puede deshacer.": "Eliminar la comanda {code} per sempre? No es pot desfer.",
+  "Eliminar pedido": "Eliminar comanda",
+  "Para borrar pedidos de prueba. Desaparece de las listas, la caja y el resumen.": "Per esborrar comandes de prova. Desapareix de les llistes, la caixa i el resum.",
 };
