@@ -9,7 +9,7 @@ const { TRANSITIONS } = require('../services');
 const { TEXT_KEYS, CONTACT_KEYS, getSettings, saveSettings } = require('../settings');
 const {
   normalizeDni, isValidEmail, generatePassword, parseMoney, fromLocalInput, slugify, orderCode, STATUS, formatDate,
-  instagramUrl, customerLabel,
+  instagramUrl, customerLabel, readFullName,
 } = require('../util');
 
 const STATUSES = Object.keys(STATUS);
@@ -577,6 +577,19 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       flash(req, 'ok', 'Se ha enviado una contraseña nueva a {email}.', { email: client.email });
     } else {
       flash(req, 'ok', 'Contraseña nueva: {password}. El envío de correos no está configurado: dásela tú a la persona.', { password });
+    }
+    res.redirect(`/admin/clientes/${client.id}`);
+  });
+
+  router.post('/clientes/:id/nombre', (req, res) => {
+    const client = findClient(req.params.id);
+    if (!client) return res.redirect('/admin/clientes');
+    const name = readFullName(req.body.name);
+    if (!name) {
+      flash(req, 'error', 'Escribe el nombre y apellidos.');
+    } else {
+      db.prepare('UPDATE users SET player_name = ? WHERE id = ?').run(name, client.id);
+      flash(req, 'ok', 'Nombre guardado.');
     }
     res.redirect(`/admin/clientes/${client.id}`);
   });

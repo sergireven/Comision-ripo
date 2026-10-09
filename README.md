@@ -8,7 +8,7 @@ El pago se hace en mano a la comisión. La web controla qué ha pedido cada pers
 ## Qué hace
 
 **Clientes** (cualquiera puede comprar: usuario = su correo)
-- **Crear cuenta** solo con el correo: la web genera una contraseña (tipo `RIPO-K7QM-3XTA`), la muestra en pantalla y la envía por correo. Un correo = una cuenta.
+- **Crear cuenta** con nombre y apellidos y el correo: la web genera una contraseña (tipo `RIPO-K7QM-3XTA`), la muestra en pantalla y la envía por correo. Un correo = una cuenta.
 - **Recuperar acceso**: se envía un enlace (válido 1 h y de un solo uso) al correo para generar una contraseña nueva.
 - **Tienda** con desplegable por tipo de producto, packs, foto, precio, color/modelo, talla y cantidad. Los productos marcados como «nombre jugador + dorsal» piden ambos datos.
 - **Carrito** → revisar → «Realizar pedido». El pedido queda **pendiente de pago** y se puede cancelar mientras no esté pagado.
@@ -25,7 +25,7 @@ El pago se hace en mano a la comisión. La web controla qué ha pedido cada pers
 - **Resumen** para el proveedor: unidades por producto, color/modelo y talla, más el listado de personalizaciones (nombre jugador y dorsal). Imprimible.
 - **Productos** (nombre y descripción en castellano y, opcionalmente, en catalán; foto, precio, categoría, colores, modelos, tallas, guía de tallas, «requiere nombre jugador + dorsal», visible/oculto), **categorías** y **packs**.
 - **Periodos de pedidos**: fechas de apertura y cierre (hora de Madrid). Fuera de un periodo no se puede añadir al carrito ni confirmar pedidos.
-- **Clientes**: lista de cuentas (la comisión no crea usuarios: cada persona se da de alta). Desde la ficha se puede generar una contraseña nueva (se envía por correo; sin servicio de correo se muestra a la comisión) o eliminar una cuenta sin pedidos.
+- **Clientes**: lista de cuentas con nombre y correo (la comisión no crea usuarios: cada persona se da de alta). Desde la ficha se puede corregir el nombre, generar una contraseña nueva (se envía por correo; sin servicio de correo se muestra a la comisión) o eliminar una cuenta sin pedidos.
 - **Textos de la web**, **administradores** y **registro de correos** enviados (sin contraseñas).
 
 ### Pago y entrega con QR

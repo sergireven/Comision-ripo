@@ -37,7 +37,7 @@ function setup({ brevo = false } = {}) {
   const mails = () => db.prepare('SELECT * FROM email_log ORDER BY id').all();
   db.prepare(`INSERT INTO users (role, username, password_hash, activated_at) VALUES ('admin', 'comision', ?, 'x')`)
     .run(bcrypt.hashSync('admin-password', 4));
-  db.prepare(`INSERT INTO users (role, email, password_hash, activated_at) VALUES ('family', 'laia@example.com', ?, 'x')`)
+  db.prepare(`INSERT INTO users (role, player_name, email, password_hash, activated_at) VALUES ('family', 'Laia Puig', 'laia@example.com', ?, 'x')`)
     .run(bcrypt.hashSync('clave-familia', 4));
   return { db, app, sent, mails };
 }
@@ -71,19 +71,22 @@ test('alta con el correo: contraseña en pantalla y por correo; un correo = una 
   let _csrf = await csrfOf(anon, '/registro');
 
   // Validaciones
-  let res = await anon.post('/registro').type('form').send({ _csrf, email: 'no-es-correo', email2: 'no-es-correo' });
+  let r0 = await anon.post('/registro').type('form').send({ _csrf, name: 'Marc', email: 'marc@example.com', email2: 'marc@example.com' });
+  assert.strictEqual(r0.status, 400, 'hace falta nombre y apellidos');
+  let res = await anon.post('/registro').type('form').send({ _csrf, name: 'Marc  Soler ', email: 'no-es-correo', email2: 'no-es-correo' });
   assert.strictEqual(res.status, 400);
-  res = await anon.post('/registro').type('form').send({ _csrf, email: 'marc@example.com', email2: 'otro@example.com' });
+  res = await anon.post('/registro').type('form').send({ _csrf, name: 'Marc  Soler ', email: 'marc@example.com', email2: 'otro@example.com' });
   assert.strictEqual(res.status, 400);
-  res = await anon.post('/registro').type('form').send({ _csrf, email: 'Laia@Example.com', email2: 'laia@example.com' });
+  res = await anon.post('/registro').type('form').send({ _csrf, name: 'Marc  Soler ', email: 'Laia@Example.com', email2: 'laia@example.com' });
   assert.strictEqual(res.status, 409, 'ya existe');
 
   // Alta correcta: la contraseña sale en pantalla y queda la sesión iniciada
-  res = await anon.post('/registro').type('form').send({ _csrf, email: ' Marc@Example.com ', email2: 'marc@example.com' });
+  res = await anon.post('/registro').type('form').send({ _csrf, name: 'Marc  Soler ', email: ' Marc@Example.com ', email2: 'marc@example.com' });
   assert.strictEqual(res.status, 200);
   const password = /class="secret">([^<]+)</.exec(res.text)[1];
   assert.match(password, /^RIPO-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
   assert.match(res.text, /marc@example\.com/);
+  assert.strictEqual(db.prepare("SELECT player_name FROM users WHERE email = 'marc@example.com'").get().player_name, 'Marc Soler');
   assert.strictEqual((await anon.get('/carrito')).status, 200, 'sesión iniciada');
   await wait();
   assert.ok(mails().some((m) => m.to_address === 'marc@example.com'));
@@ -266,7 +269,7 @@ test('idioma: selector, textos y correos en el idioma de la persona', async () =
 
   // Alta en catalán -> la cuenta guarda el idioma y los correos llegan en catalán
   const _csrf = await csrfOf(agent, '/registro');
-  await agent.post('/registro').type('form').send({ _csrf, email: 'ca@example.com', email2: 'ca@example.com' });
+  await agent.post('/registro').type('form').send({ _csrf, name: 'Marc  Soler ', email: 'ca@example.com', email2: 'ca@example.com' });
   assert.strictEqual(db.prepare("SELECT lang FROM users WHERE email = 'ca@example.com'").get().lang, 'ca');
   await wait();
   assert.match(mails().find((m) => m.to_address === 'ca@example.com').subject, /El teu accés/);
@@ -455,7 +458,7 @@ test('correos por Brevo: remitente, contraseña y QR enlazado (imagen de la web)
   // Alta: el correo con la contraseña sale por la API de Brevo
   const anon = request.agent(app);
   let _csrf = await csrfOf(anon, '/registro');
-  let res = await anon.post('/registro').type('form').send({ _csrf, email: 'marc@example.com', email2: 'marc@example.com' });
+  let res = await anon.post('/registro').type('form').send({ _csrf, name: 'Marc  Soler ', email: 'marc@example.com', email2: 'marc@example.com' });
   assert.doesNotMatch(res.text, /No se ha podido|no està configurat/);
   await wait();
   assert.ok(mails().some((m) => m.to_address === 'marc@example.com' && m.status === 'enviado'));
@@ -538,4 +541,27 @@ test('personalización opcional: hay que elegir expresamente «Sin personalizar�
   assert.match(res.text, /Sin personalizar|Sense personalitzar/);
   res = await adm.get('/admin/pedidos.csv');
   assert.match(res.text, /Sin personalizar|Sense personalitzar/);
+});
+
+test('cuentas antiguas sin nombre: lo piden antes de confirmar el pedido', async () => {
+  const { db, app } = setup();
+  db.prepare("UPDATE users SET player_name = NULL WHERE email = 'laia@example.com'").run();
+  db.prepare("INSERT INTO products (name, price_cents) VALUES ('Bufanda', 1000)").run();
+  openPeriod(db);
+  const fam = request.agent(app);
+  await login(fam, 'laia@example.com', 'clave-familia');
+  const _csrf = await csrfOf(fam, '/tienda');
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: 1, quantity: 1 });
+  let res = await fam.get('/carrito');
+  assert.match(res.text, /action="\/cuenta\/nombre"/);
+  await fam.post('/carrito/confirmar').type('form').send({ _csrf });
+  assert.strictEqual(db.prepare('SELECT COUNT(*) AS n FROM orders').get().n, 0);
+  res = await fam.post('/cuenta/nombre').type('form').send({ _csrf, name: 'Laia Puig', back: 'carrito' });
+  assert.strictEqual(res.headers.location, '/carrito');
+  await fam.post('/carrito/confirmar').type('form').send({ _csrf });
+  assert.strictEqual(db.prepare('SELECT COUNT(*) AS n FROM orders').get().n, 1);
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  res = await adm.get('/admin/pedidos');
+  assert.match(res.text, /Laia Puig/);
 });

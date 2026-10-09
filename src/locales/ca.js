@@ -651,4 +651,14 @@ module.exports = {
   "Personalización": "Personalització",
   "Personalizar con nombre jugador y dorsal": "Personalitzar amb nom jugador i dorsal",
   "Indica el nombre a personalizar o elige «Sin personalizar».": "Indica el nom a personalitzar o tria «Sense personalitzar».",
+
+  // --- Nombre y apellidos del titular ---
+  "Escribe tu nombre y apellidos.": "Escriu el teu nom i cognoms.",
+  "Escribe el nombre y apellidos.": "Escriu el nom i cognoms.",
+  "Escribe tu nombre y apellidos antes de hacer el pedido.": "Escriu el teu nom i cognoms abans de fer la comanda.",
+  "Solo necesitas tu nombre y tu correo. Te daremos una contraseña al momento (en pantalla y por correo) y allí recibirás los avisos de tus pedidos.": "Només necessites el teu nom i el teu correu. Et donarem una contrasenya al moment (en pantalla i per correu) i allà rebràs els avisos de les teves comandes.",
+  "De quien hace el pedido, para que la comisión sepa quién eres.": "De qui fa la comanda, perquè la comissió sàpiga qui ets.",
+  "Guardar nombre": "Desar el nom",
+  "Nombre guardado.": "Nom desat.",
+  "Antes de hacer el pedido, dinos tu nombre y apellidos:": "Abans de fer la comanda, digues-nos el teu nom i cognoms:",
 };

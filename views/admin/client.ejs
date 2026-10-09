@@ -4,6 +4,11 @@
 <div class="grid two">
   <section class="card">
     <h2><%= t('Datos') %></h2>
+    <form method="post" action="/admin/clientes/<%= client.id %>/nombre" class="form compact">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label><%= t('Nombre y apellidos') %> <input name="name" value="<%= client.player_name || '' %>" maxlength="80" required></label>
+      <button class="btn small"><%= t('Guardar nombre') %></button>
+    </form>
     <dl class="kv">
       <dt><%= t('Correo') %></dt><dd><%= client.email ? client.email : '—' %></dd>
       <dt><%= t('Alta') %></dt><dd><%= formatDate(client.created_at) %></dd>

@@ -2,12 +2,16 @@
 <section class="auth">
   <div class="card narrow">
     <h1><%= t('Crear cuenta') %></h1>
-    <p class="muted"><%= t('Solo necesitas tu correo. Te daremos una contraseña al momento (en pantalla y por correo) y allí recibirás los avisos de tus pedidos.') %></p>
+    <p class="muted"><%= t('Solo necesitas tu nombre y tu correo. Te daremos una contraseña al momento (en pantalla y por correo) y allí recibirás los avisos de tus pedidos.') %></p>
     <% if (typeof error !== 'undefined') { %><div class="flash error"><%= t(error) %></div><% } %>
     <form method="post" action="/registro" class="form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label><%= t('Nombre y apellidos') %>
+        <input name="name" value="<%= name %>" autocomplete="name" maxlength="80" required autofocus>
+        <span class="hint"><%= t('De quien hace el pedido, para que la comisión sepa quién eres.') %></span>
+      </label>
       <label><%= t('Correo electrónico') %>
-        <input type="email" name="email" value="<%= email %>" autocomplete="email" autocapitalize="none" required autofocus>
+        <input type="email" name="email" value="<%= email %>" autocomplete="email" autocapitalize="none" required>
       </label>
       <label><%= t('Repite el correo') %>
         <input type="email" name="email2" autocomplete="off" autocapitalize="none" required>

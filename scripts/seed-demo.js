@@ -13,8 +13,8 @@ db.transaction(() => {
       .run(bcrypt.hashSync('comision-demo', 10));
   }
   if (!db.prepare("SELECT 1 FROM users WHERE role = 'family' AND email = 'familia@example.com'").get()) {
-    db.prepare(`INSERT INTO users (role, email, password_hash, activated_at)
-      VALUES ('family', 'familia@example.com', ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`).run(bcrypt.hashSync('familia-demo', 10));
+    db.prepare(`INSERT INTO users (role, player_name, email, password_hash, activated_at)
+      VALUES ('family', 'Família Demo', 'familia@example.com', ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`).run(bcrypt.hashSync('familia-demo', 10));
   }
 
   if (!db.prepare('SELECT 1 FROM products').get()) {

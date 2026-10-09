@@ -11,6 +11,15 @@
       <% } %>
       <dt><%= t('Idioma') %></dt><dd><a href="/idioma/ca">Català</a> · <a href="/idioma/es">Castellano</a></dd>
     </dl>
+    <% if (user.role === 'family') { %>
+      <form method="post" action="/cuenta/nombre" class="form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <label><%= t('Nombre y apellidos') %>
+          <input name="name" value="<%= user.player_name || '' %>" autocomplete="name" maxlength="80" required>
+        </label>
+        <button class="btn"><%= t('Guardar nombre') %></button>
+      </form>
+    <% } %>
     <form method="post" action="/cuenta/email" class="form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <label><%= user.role === 'family' ? t('Correo (es también tu usuario)') : t('Correo de contacto') %>

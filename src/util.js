@@ -114,7 +114,13 @@ function escapeHtml(text) {
   return String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
 
-/** Cómo se muestra un cliente: su correo (y el nombre si lo tiene, de cuentas antiguas). */
+/** Nombre y apellidos del titular: espacios normalizados; null si no parece un nombre completo (mín. dos palabras). */
+function readFullName(value) {
+  const name = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  return name.split(' ').length >= 2 && name.length >= 5 ? name : null;
+}
+
+/** Cómo se muestra un cliente: nombre y apellidos · correo. */
 function customerLabel(u) {
   if (!u) return '';
   const id = u.email || u.dni || u.username || '';
@@ -138,5 +144,5 @@ function instagramUrl(value) {
 module.exports = {
   TZ, randomString, generatePassword, generateToken, sha256, normalizeDni, isValidDni,
   isValidEmail, formatMoney, parseMoney, formatDate, toLocalInput, fromLocalInput, slugify,
-  STATUS, orderCode, parseSizes, escapeHtml, paragraphs, instagramUrl, customerLabel,
+  STATUS, orderCode, parseSizes, escapeHtml, paragraphs, instagramUrl, customerLabel, readFullName,
 };

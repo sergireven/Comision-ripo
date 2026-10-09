@@ -84,6 +84,10 @@ module.exports = function shopRoutes({ db, mailer, orders }) {
   });
 
   router.post('/carrito/confirmar', requireFamily, (req, res) => {
+    if (!req.user.player_name) {
+      flash(req, 'error', 'Escribe tu nombre y apellidos antes de hacer el pedido.');
+      return res.redirect('/carrito');
+    }
     const status = shopStatus(db);
     if (!status.open) {
       flash(req, 'error', 'El periodo de pedidos está cerrado. No se pueden hacer pedidos ahora.');

@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { flash, requireLogin, rateLimit } = require('../middleware');
-const { isValidEmail, generatePassword, generateToken, sha256 } = require('../util');
+const { isValidEmail, generatePassword, generateToken, sha256, readFullName } = require('../util');
 
 const limiter = () => rateLimit({ max: process.env.NODE_ENV === 'test' ? 1000 : 10 });
 const readEmail = (value) => String(value || '').trim().toLowerCase();
@@ -44,13 +44,16 @@ module.exports = function authRoutes({ db, mailer }) {
   // --- Crear cuenta: solo el correo; la contraseña se genera, se muestra en pantalla y se envía por correo ---
   router.get('/registro', (req, res) => {
     if (req.user) return res.redirect(homeOf(req.user));
-    res.render('auth/register', { title: 'Crear cuenta', email: '' });
+    res.render('auth/register', { title: 'Crear cuenta', email: '', name: '' });
   });
   router.get('/primer-acceso', (req, res) => res.redirect(301, '/registro'));
 
   router.post('/registro', limiter(), (req, res, next) => {
     const email = readEmail(req.body.email);
-    const render = (status, error) => res.status(status).render('auth/register', { title: 'Crear cuenta', email, error });
+    const name = readFullName(req.body.name);
+    const render = (status, error) => res.status(status)
+      .render('auth/register', { title: 'Crear cuenta', email, name: String(req.body.name || '').slice(0, 80), error });
+    if (!name) return render(400, 'Escribe tu nombre y apellidos.');
     if (!isValidEmail(email)) return render(400, 'Introduce un correo válido.');
     if (email !== readEmail(req.body.email2)) return render(400, 'Los dos correos no coinciden.');
     if (findCustomer.get(email)) return render(409, 'Ya hay una cuenta con este correo. Entra con tu contraseña o usa «He olvidado mi contraseña».');
@@ -58,8 +61,8 @@ module.exports = function authRoutes({ db, mailer }) {
     const password = generatePassword();
     let user;
     try {
-      const info = db.prepare(`INSERT INTO users (role, email, password_hash, lang, activated_at)
-        VALUES ('family', ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`).run(email, bcrypt.hashSync(password, 10), req.lang);
+      const info = db.prepare(`INSERT INTO users (role, player_name, email, password_hash, lang, activated_at)
+        VALUES ('family', ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`).run(name, email, bcrypt.hashSync(password, 10), req.lang);
       user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
     } catch (err) {
       if (/UNIQUE/.test(err.message)) return render(409, 'Ya hay una cuenta con este correo. Entra con tu contraseña o usa «He olvidado mi contraseña».');
@@ -130,6 +133,17 @@ module.exports = function authRoutes({ db, mailer }) {
       flash(req, 'ok', 'Contraseña cambiada.');
     }
     res.redirect('/cuenta');
+  });
+
+  router.post('/cuenta/nombre', requireLogin, (req, res) => {
+    const name = readFullName(req.body.name);
+    if (!name) {
+      flash(req, 'error', 'Escribe tu nombre y apellidos.');
+    } else {
+      db.prepare('UPDATE users SET player_name = ? WHERE id = ?').run(name, req.user.id);
+      flash(req, 'ok', 'Nombre guardado.');
+    }
+    res.redirect(req.body.back === 'carrito' ? '/carrito' : '/cuenta');
   });
 
   router.post('/cuenta/email', requireLogin, (req, res) => {

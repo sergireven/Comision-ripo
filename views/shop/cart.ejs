@@ -65,6 +65,16 @@
     <div class="total-row grand"><span><%= t('Total') %></span><span><%= formatMoney(cart.total) %></span></div>
   </div>
 
+  <% if (!user.player_name) { %>
+    <form method="post" action="/cuenta/nombre" class="card form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="back" value="carrito">
+      <label><%= t('Antes de hacer el pedido, dinos tu nombre y apellidos:') %>
+        <input name="name" autocomplete="name" maxlength="80" required>
+      </label>
+      <button class="btn"><%= t('Guardar nombre') %></button>
+    </form>
+  <% } %>
   <div class="card checkout">
     <div>
       <p><strong><%= t('Revisa que todo sea correcto (colores, modelos, tallas, nombre jugador y dorsal) antes de confirmar.') %></strong></p>

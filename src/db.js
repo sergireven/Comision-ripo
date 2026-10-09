@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   role          TEXT NOT NULL CHECK (role IN ('family', 'admin')),
   dni           TEXT UNIQUE,              -- DNI/NIE del jugador/a (familias)
   username      TEXT UNIQUE,              -- usuario (administradores)
-  player_name   TEXT,
+  player_name   TEXT,                     -- clientes: nombre y apellidos del titular; comisión: nombre
   player_number TEXT,                     -- dorsal
   team          TEXT,
   email         TEXT,
