@@ -39,7 +39,7 @@
     <dl class="kv">
       <dt><%= t('Total cobrado') %></dt><dd><strong><%= formatMoney(stats.pendiente_entrega.total + stats.entregado.total) %></strong></dd>
       <dt><%= t('Pendiente de cobrar') %></dt><dd><%= formatMoney(stats.pendiente_pago.total) %></dd>
-      <dt><%= t('Familias activadas') %></dt><dd><%= t('{a} de {b}', { a: families.active, b: families.total }) %></dd>
+      <dt><%= t('Clientes registrados') %></dt><dd><a href="/admin/clientes"><%= families.total %></a></dd>
     </dl>
     <h3><%= t('Cobrado por cada miembro de la comisión') %></h3>
     <% if (!cash.length) { %><p class="muted small"><%= t('Aún no se ha cobrado nada.') %></p><% } %>
@@ -55,7 +55,7 @@
     <% if (!recent.length) { %><p class="muted"><%= t('Aún no hay pedidos.') %></p><% } %>
     <ul class="plain">
       <% recent.forEach(o => { %>
-        <li><a href="/admin/pedidos/<%= o.id %>"><%= orderCode(o.id) %> · <%= o.player_name %></a>
+        <li><a href="/admin/pedidos/<%= o.id %>"><%= orderCode(o.id) %> · <%= customerLabel(o) %></a>
           <span class="right"><%= formatMoney(o.total_cents) %> <%- include('../partials/status', { status: o.status }) %></span></li>
       <% }) %>
     </ul>

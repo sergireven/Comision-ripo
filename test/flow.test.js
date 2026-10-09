@@ -9,9 +9,12 @@ const bcrypt = require('bcryptjs');
 const { openDb } = require('../src/db');
 const { createApp } = require('../src/app');
 const { createMailer } = require('../src/mailer');
-const { fromLocalInput, toLocalInput, isValidDni } = require('../src/util');
+const { fromLocalInput, toLocalInput, sha256 } = require('../src/util');
 
-/** Con { brevo: true } los correos «salen» por una API de Brevo simulada; `sent` guarda lo que se le envía. */
+/**
+ * Base de datos en memoria con un administrador («comision») y una clienta (laia@example.com / clave-familia).
+ * Con { brevo: true } los correos «salen» por una API de Brevo simulada; `sent` guarda lo que se le envía.
+ */
 function setup({ brevo = false } = {}) {
   const db = openDb(':memory:');
   const sent = [];
@@ -30,11 +33,12 @@ function setup({ brevo = false } = {}) {
   const server = createApp(db, { uploadDir, mailer }).listen(0);
   test.after(() => server.close());
   const app = server;
-  // Captura los correos registrados en email_log.
+  // Correos registrados en email_log.
   const mails = () => db.prepare('SELECT * FROM email_log ORDER BY id').all();
   db.prepare(`INSERT INTO users (role, username, password_hash, activated_at) VALUES ('admin', 'comision', ?, 'x')`)
     .run(bcrypt.hashSync('admin-password', 4));
-  db.prepare(`INSERT INTO users (role, dni, player_name, player_number) VALUES ('family', '12345678Z', 'Laia Pérez', '7')`).run();
+  db.prepare(`INSERT INTO users (role, email, password_hash, activated_at) VALUES ('family', 'laia@example.com', ?, 'x')`)
+    .run(bcrypt.hashSync('clave-familia', 4));
   return { db, app, sent, mails };
 }
 
@@ -50,79 +54,105 @@ async function login(agent, usuario, password) {
   return agent.post('/login').type('form').send({ _csrf, usuario, password });
 }
 
+const openPeriod = (db) => db.prepare('INSERT INTO periods (name, starts_at, ends_at) VALUES (?, ?, ?)')
+  .run('P', new Date(Date.now() - 1000).toISOString(), new Date(Date.now() + 1e6).toISOString());
+
 const wait = () => new Promise((r) => setTimeout(r, 30));
 
-test('utilidades de fechas y DNI', () => {
+test('utilidades de fechas', () => {
   assert.strictEqual(fromLocalInput('2026-07-01T10:00'), '2026-07-01T08:00:00.000Z'); // verano UTC+2
   assert.strictEqual(fromLocalInput('2026-12-01T10:00'), '2026-12-01T09:00:00.000Z'); // invierno UTC+1
   assert.strictEqual(toLocalInput('2026-12-01T09:00:00.000Z'), '2026-12-01T10:00');
-  assert.ok(isValidDni('12345678Z'));
-  assert.ok(isValidDni('x1234567l'));
-  assert.ok(!isValidDni('12345678A'));
 });
 
-test('flujo completo: primer acceso, pedido, pago y entrega con QR', async () => {
+test('alta con el correo: contraseña en pantalla y por correo; un correo = una cuenta', async () => {
   const { db, app, mails } = setup();
-  const fam = request.agent(app);
-  const adm = request.agent(app);
+  const anon = request.agent(app);
+  let _csrf = await csrfOf(anon, '/registro');
 
-  // DNI desconocido
-  let _csrf = await csrfOf(fam, '/primer-acceso');
-  let res = await fam.post('/primer-acceso').type('form').send({ _csrf, dni: '00000000T' });
-  assert.strictEqual(res.status, 404);
+  // Validaciones
+  let res = await anon.post('/registro').type('form').send({ _csrf, email: 'no-es-correo', email2: 'no-es-correo' });
+  assert.strictEqual(res.status, 400);
+  res = await anon.post('/registro').type('form').send({ _csrf, email: 'marc@example.com', email2: 'otro@example.com' });
+  assert.strictEqual(res.status, 400);
+  res = await anon.post('/registro').type('form').send({ _csrf, email: 'Laia@Example.com', email2: 'laia@example.com' });
+  assert.strictEqual(res.status, 409, 'ya existe');
 
-  // Primer acceso
-  res = await fam.post('/primer-acceso').type('form').send({ _csrf, dni: '12345678-z' });
-  assert.match(res.text, /Laia Pérez/);
-  res = await fam.post('/primer-acceso').type('form').send({ _csrf, dni: '12345678Z', step: '2', email: 'fam@example.com', email2: 'fam@example.com' });
+  // Alta correcta: la contraseña sale en pantalla y queda la sesión iniciada
+  res = await anon.post('/registro').type('form').send({ _csrf, email: ' Marc@Example.com ', email2: 'marc@example.com' });
   assert.strictEqual(res.status, 200);
   const password = /class="secret">([^<]+)</.exec(res.text)[1];
   assert.match(password, /^RIPO-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  assert.match(res.text, /marc@example\.com/);
+  assert.strictEqual((await anon.get('/carrito')).status, 200, 'sesión iniciada');
   await wait();
-  assert.ok(mails().some((m) => m.to_address === 'fam@example.com' && /activ|acc[eé]s/i.test(m.subject)));
+  assert.ok(mails().some((m) => m.to_address === 'marc@example.com'));
   assert.ok(!mails().some((m) => m.body.includes(password)), 'la contraseña no se guarda en el registro');
 
-  // Segundo intento de activar: rechazado
-  const other = request.agent(app);
-  _csrf = await csrfOf(other, '/primer-acceso');
-  res = await other.post('/primer-acceso').type('form').send({ _csrf, dni: '12345678Z', step: '2', email: 'x@x.com', email2: 'x@x.com' });
-  assert.strictEqual(res.status, 409);
+  // Entrar con el correo (sin distinguir mayúsculas)
+  assert.strictEqual((await login(request.agent(app), 'MARC@example.com', password)).status, 302);
+  assert.strictEqual((await login(request.agent(app), 'marc@example.com', 'mala')).status, 401);
+  // La comisión entra con su usuario
+  res = await login(request.agent(app), 'comision', 'admin-password');
+  assert.strictEqual(res.headers.location, '/admin');
 
-  // Login con la contraseña generada
-  res = await login(request.agent(app), '12345678z', password);
-  assert.strictEqual(res.status, 302);
+  // El enlace antiguo de «Primer acceso» lleva al alta
+  res = await anon.get('/primer-acceso');
+  assert.strictEqual(res.headers.location, '/registro');
+
+  // La comisión ve las cuentas en «Clientes» pero no puede crearlas
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  res = await adm.get('/admin/clientes?q=marc');
+  assert.match(res.text, /marc@example\.com/);
+  assert.doesNotMatch(res.text, /laia@example\.com/);
+  const marc = db.prepare("SELECT * FROM users WHERE email = 'marc@example.com'").get();
+  // Sin servicio de correo, la contraseña nueva se muestra a la comisión para dársela a la persona
+  _csrf = await csrfOf(adm, `/admin/clientes/${marc.id}`);
+  await adm.post(`/admin/clientes/${marc.id}/nueva-contrasena`).type('form').send({ _csrf });
+  res = await adm.get(`/admin/clientes/${marc.id}`);
+  assert.match(res.text, /RIPO-[A-Z2-9]{4}-[A-Z2-9]{4}/);
+  assert.strictEqual((await login(request.agent(app), 'marc@example.com', password)).status, 401, 'la anterior ya no sirve');
+  // Una clienta no puede entrar en el panel
+  const fam = request.agent(app);
+  await login(fam, 'laia@example.com', 'clave-familia');
+  assert.strictEqual((await fam.get('/admin/clientes')).status, 403);
+});
+
+test('flujo completo con un único QR: pedido, cobro y entrega', async () => {
+  const { db, app, mails } = setup();
+  const fam = request.agent(app);
+  const adm = request.agent(app);
+  await login(fam, 'laia@example.com', 'clave-familia');
 
   // Admin: producto personalizado y otro con tallas
-  res = await login(adm, 'comision', 'admin-password');
-  assert.strictEqual(res.headers.location, '/admin');
-  _csrf = await csrfOf(adm, '/admin/productos/nuevo');
+  let res = await login(adm, 'comision', 'admin-password');
+  let _csrf = await csrfOf(adm, '/admin/productos/nuevo');
   res = await adm.post(`/admin/productos?_csrf=${_csrf}`)
     .field('name', 'Botellero').field('price', '12,50').field('personalization', '1').field('active', '1')
     .attach('image', Buffer.from([0x89, 0x50, 0x4e, 0x47]), { filename: 'b.png', contentType: 'image/png' });
   assert.strictEqual(res.status, 302);
   res = await adm.post(`/admin/productos?_csrf=${_csrf}`)
     .field('name', 'Sudadera').field('price', '30').field('sizes', 'S, M').field('active', '1');
-  assert.strictEqual(res.status, 302);
   const [botella, sudadera] = db.prepare('SELECT * FROM products ORDER BY id').all();
   assert.strictEqual(botella.price_cents, 1250);
   assert.ok(botella.image);
 
   // Sin periodo abierto no se puede añadir
   _csrf = await csrfOf(fam, '/tienda');
-  res = await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: sudadera.id, quantity: 1, size: 'M' });
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: sudadera.id, quantity: 1, size: 'M' });
   assert.strictEqual(db.prepare('SELECT COUNT(*) n FROM cart_items').get().n, 0);
 
   // Admin abre periodo
   const local = (ms) => toLocalInput(new Date(Date.now() + ms).toISOString());
-  res = await adm.post('/admin/periodos').type('form').send({ _csrf: await csrfOf(adm, '/admin/periodos'), name: 'Navidad', starts_at: local(-3600e3), ends_at: local(86400e3) });
+  await adm.post('/admin/periodos').type('form').send({ _csrf: await csrfOf(adm, '/admin/periodos'), name: 'Navidad', starts_at: local(-3600e3), ends_at: local(86400e3) });
   res = await fam.get('/tienda');
   assert.match(res.text, /Comandes obertes|Pedidos abiertos/);
-  assert.match(res.text, /data-countdown/);
 
   // Validaciones de carrito
-  res = await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: sudadera.id, quantity: 1 });
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: sudadera.id, quantity: 1 });
   assert.strictEqual(db.prepare('SELECT COUNT(*) n FROM cart_items').get().n, 0, 'talla obligatoria');
-  res = await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: botella.id, quantity: 1, custom_name: 'Laia' });
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: botella.id, quantity: 1, custom_name: 'Laia' });
   assert.strictEqual(db.prepare('SELECT COUNT(*) n FROM cart_items').get().n, 0, 'dorsal obligatorio');
 
   await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: sudadera.id, quantity: 2, size: 'M' });
@@ -136,77 +166,53 @@ test('flujo completo: primer acceso, pedido, pago y entrega con QR', async () =>
   const order = db.prepare('SELECT * FROM orders').get();
   assert.strictEqual(order.status, 'pendiente_pago');
   assert.strictEqual(order.total_cents, 7250);
-  assert.strictEqual(db.prepare('SELECT COUNT(*) n FROM cart_items').get().n, 0);
 
-  // La familia ve el QR de PAGO mientras está pendiente de pago
+  // La clienta ve el QR del pedido
   res = await fam.get(`/pedidos/${order.id}`);
-  assert.match(res.text, /Pendiente de pago|Pendent de pagament/);
   assert.match(res.text, /data:image\/png/);
-  assert.strictEqual(order.pickup_token, null, 'sin QR de recogida hasta pagar');
 
-  // Una familia no puede usar la URL del QR
-  res = await fam.get(`/admin/qr/${order.pay_token}`);
-  assert.strictEqual(res.status, 403);
+  // Una clienta no puede usar la URL del QR
+  assert.strictEqual((await fam.get(`/admin/qr/${order.pay_token}`)).status, 403);
 
-  // La comisión escanea el QR de pago: ve el botón de cobrar, no el de entregar
+  // La comisión escanea el QR: como está pendiente de pago, solo puede cobrar
   res = await adm.get(`/admin/qr/${order.pay_token}`);
   assert.match(res.text, /\/cobrar/);
   assert.doesNotMatch(res.text, /\/entregar/);
-  const admCsrf = await csrfOf(adm, `/admin/qr/${order.pay_token}`);
+  const c = await csrfOf(adm, `/admin/qr/${order.pay_token}`);
+  await adm.post(`/admin/qr/${order.pay_token}/entregar`).type('form').send({ _csrf: c });
+  assert.strictEqual(db.prepare('SELECT status FROM orders').get().status, 'pendiente_pago', 'no se entrega sin pagar');
 
-  // Con el QR de pago no se puede entregar
-  await adm.post(`/admin/qr/${order.pay_token}/entregar`).type('form').send({ _csrf: admCsrf });
-  assert.strictEqual(db.prepare('SELECT status FROM orders').get().status, 'pendiente_pago');
-
-  // Cobro con el QR de pago -> se genera el QR de recogida
-  await adm.post(`/admin/qr/${order.pay_token}/cobrar`).type('form').send({ _csrf: admCsrf });
+  // Cobro con el QR
+  await adm.post(`/admin/qr/${order.pay_token}/cobrar`).type('form').send({ _csrf: c });
   let paid = db.prepare('SELECT * FROM orders').get();
   assert.strictEqual(paid.status, 'pendiente_entrega');
-  assert.match(paid.pickup_token, /^[0-9a-f]{64}$/);
-  assert.match(paid.pickup_code, /^[A-Z2-9]{6}$/);
   assert.strictEqual(paid.paid_by, 1);
+  assert.strictEqual(paid.pickup_token, null, 'no hay segundo QR');
+  await adm.post(`/admin/qr/${order.pay_token}/cobrar`).type('form').send({ _csrf: c });
+  assert.strictEqual(db.prepare('SELECT COUNT(*) n FROM order_events WHERE status = ?').get('pendiente_entrega').n, 1, 'cobrar dos veces no hace nada');
 
-  // Cobrar dos veces no hace nada
-  await adm.post(`/admin/qr/${order.pay_token}/cobrar`).type('form').send({ _csrf: admCsrf });
-  assert.strictEqual(db.prepare('SELECT COUNT(*) n FROM order_events WHERE status = ?').get('pendiente_entrega').n, 1);
-
-  // Al volver a escanear el QR de pago, avisa de que ya está pagado
-  res = await adm.get(`/admin/qr/${order.pay_token}`);
-  assert.doesNotMatch(res.text, /\/cobrar"/);
-
-  // La familia ya no puede cancelar y ve el QR de recogida + código
-  res = await fam.post(`/pedidos/${order.id}/cancelar`).type('form').send({ _csrf });
+  // La clienta ya no puede cancelar y sigue viendo el mismo QR
+  await fam.post(`/pedidos/${order.id}/cancelar`).type('form').send({ _csrf });
   assert.strictEqual(db.prepare('SELECT status FROM orders').get().status, 'pendiente_entrega');
   res = await fam.get(`/pedidos/${order.id}`);
-  assert.match(res.text, new RegExp(paid.pickup_code));
-
-  // Deshacer el cobro invalida el QR de recogida; al volver a cobrar se genera otro
-  let c = await csrfOf(adm, `/admin/pedidos/${order.id}`);
-  await adm.post(`/admin/pedidos/${order.id}/estado`).type('form').send({ _csrf: c, status: 'pendiente_pago' });
-  assert.strictEqual((await adm.get(`/admin/qr/${paid.pickup_token}`)).status, 404);
-  await adm.post(`/admin/pedidos/${order.id}/estado`).type('form').send({ _csrf: c, status: 'pendiente_entrega' });
-  paid = db.prepare('SELECT * FROM orders').get();
+  assert.match(res.text, /data:image\/png/);
 
   // Aviso de «listo para recoger»
-  c = await csrfOf(adm, '/admin/pedidos?estado=pendiente_entrega');
-  await adm.post('/admin/pedidos/avisar-recogida').type('form').send({ _csrf: c, message: 'Sábado en el pabellón' });
+  const cl = await csrfOf(adm, '/admin/pedidos?estado=pendiente_entrega');
+  await adm.post('/admin/pedidos/avisar-recogida').type('form').send({ _csrf: cl, message: 'Sábado en el pabellón' });
   assert.ok(db.prepare('SELECT ready_at FROM orders').get().ready_at);
 
-  // Entregado sin código o con código incorrecto: rechazado
-  await adm.post(`/admin/pedidos/${order.id}/estado`).type('form').send({ _csrf: c, status: 'entregado' });
-  await adm.post(`/admin/pedidos/${order.id}/estado`).type('form').send({ _csrf: c, status: 'entregado', code: 'AAAAAA' });
-  assert.strictEqual(db.prepare('SELECT status FROM orders').get().status, 'pendiente_entrega');
-
-  // Búsqueda por código de recogida -> QR de recogida -> entrega
-  res = await adm.get(`/admin/escanear?codigo=${paid.pickup_code.toLowerCase()}`);
-  assert.strictEqual(res.headers.location, `/admin/qr/${paid.pickup_token}`);
-  res = await adm.post(`/admin/qr/${paid.pickup_token}/entregar`).type('form').send({ _csrf: c });
+  // Al volver a escanear el MISMO QR, ofrece confirmar la entrega
+  res = await adm.get(`/admin/qr/${order.pay_token}`);
+  assert.match(res.text, /\/entregar/);
+  assert.doesNotMatch(res.text, /\/cobrar"/);
+  await adm.post(`/admin/qr/${order.pay_token}/entregar`).type('form').send({ _csrf: c });
   const done = db.prepare('SELECT * FROM orders').get();
   assert.strictEqual(done.status, 'entregado');
   assert.strictEqual(done.delivered_by, 1);
 
   await wait();
-  const famMails = mails().filter((m) => m.to_address === 'fam@example.com');
+  const famMails = mails().filter((m) => m.to_address === 'laia@example.com');
   const subjects = famMails.map((m) => m.subject).join('\n');
   assert.match(subjects, /rebuda|recibido/);
   assert.match(subjects, /Pagada|Pagado/);
@@ -214,19 +220,39 @@ test('flujo completo: primer acceso, pedido, pago y entrega con QR', async () =>
   assert.match(subjects, /Lliurada|Entregado/);
   assert.ok(famMails.some((m) => /COMPROVANT|COMPROBANTE/.test(m.body)), 'comprobante de pago');
 
-  // Panel: caja por miembro de la comisión
-  res = await adm.get('/admin');
-  assert.match(res.text, /comision/);
-
   // Resumen y CSV
   res = await adm.get('/admin/resumen');
   assert.match(res.text, /Sudadera/);
-  assert.match(res.text, /Laia/);
+  assert.match(res.text, /laia@example\.com/);
   res = await adm.get('/admin/pedidos.csv');
   assert.match(res.text, /Botellero/);
+  assert.match(res.text, /laia@example\.com/);
 });
 
-test('idioma: selector, textos y correos en el idioma de la familia', async () => {
+test('entrega a mano desde la lista de pedidos, sin QR', async () => {
+  const { db, app } = setup();
+  db.prepare("INSERT INTO products (name, price_cents) VALUES ('Bufanda', 1000)").run();
+  openPeriod(db);
+  const fam = request.agent(app);
+  await login(fam, 'laia@example.com', 'clave-familia');
+  const _csrf = await csrfOf(fam, '/tienda');
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: 1, quantity: 1 });
+  await fam.post('/carrito/confirmar').type('form').send({ _csrf });
+
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  const c = await csrfOf(adm, '/admin/pedidos');
+  let res = await adm.post('/admin/pedidos/1/estado').type('form').set('Referer', 'http://x/admin/pedidos?estado=pendiente_pago')
+    .send({ _csrf: c, status: 'pendiente_entrega', back: 'list' });
+  assert.strictEqual(db.prepare('SELECT status FROM orders').get().status, 'pendiente_entrega');
+  res = await adm.get('/admin/pedidos?estado=pendiente_entrega');
+  assert.match(res.text, /value="entregado"/, 'botón «Marcar entregado» en la lista');
+  await adm.post('/admin/pedidos/1/estado').type('form').send({ _csrf: c, status: 'entregado', back: 'list' });
+  assert.strictEqual(db.prepare('SELECT status FROM orders').get().status, 'entregado');
+  assert.strictEqual(db.prepare("SELECT note FROM order_events WHERE status = 'entregado'").get().note, 'Entregado sin QR');
+});
+
+test('idioma: selector, textos y correos en el idioma de la persona', async () => {
   const { db, app, mails } = setup();
   const agent = request.agent(app);
   let res = await agent.get('/login').set('Accept-Language', 'es-ES,es;q=0.9');
@@ -238,10 +264,10 @@ test('idioma: selector, textos y correos en el idioma de la familia', async () =
   assert.match(res.text, /He oblidat la contrasenya/);
   assert.match(res.text, /<html lang="ca">/);
 
-  // Primer acceso en catalán -> la cuenta guarda el idioma y los correos llegan en catalán
-  const _csrf = await csrfOf(agent, '/primer-acceso');
-  await agent.post('/primer-acceso').type('form').send({ _csrf, dni: '12345678Z', step: '2', email: 'ca@example.com', email2: 'ca@example.com' });
-  assert.strictEqual(db.prepare("SELECT lang FROM users WHERE dni = '12345678Z'").get().lang, 'ca');
+  // Alta en catalán -> la cuenta guarda el idioma y los correos llegan en catalán
+  const _csrf = await csrfOf(agent, '/registro');
+  await agent.post('/registro').type('form').send({ _csrf, email: 'ca@example.com', email2: 'ca@example.com' });
+  assert.strictEqual(db.prepare("SELECT lang FROM users WHERE email = 'ca@example.com'").get().lang, 'ca');
   await wait();
   assert.match(mails().find((m) => m.to_address === 'ca@example.com').subject, /El teu accés/);
 });
@@ -257,14 +283,12 @@ test('ADMIN_USER crea el primer administrador una sola vez', () => {
   assert.ok(!ensureAdmin(openDb(':memory:'), { ADMIN_USER: 'x', ADMIN_PASSWORD: 'corta' }));
 });
 
-test('cancelación por la familia y recuperación de contraseña', async () => {
+test('cancelación por la clienta y recuperación de contraseña', async () => {
   const { db, app } = setup();
-  db.prepare("UPDATE users SET email = 'f@example.com', password_hash = ?, activated_at = 'x' WHERE dni = '12345678Z'").run(bcrypt.hashSync('vieja-clave', 4));
   db.prepare("INSERT INTO products (name, price_cents) VALUES ('Bufanda', 1000)").run();
-  db.prepare('INSERT INTO periods (name, starts_at, ends_at) VALUES (?, ?, ?)')
-    .run('P', new Date(Date.now() - 1000).toISOString(), new Date(Date.now() + 1e6).toISOString());
+  openPeriod(db);
   const fam = request.agent(app);
-  await login(fam, '12345678Z', 'vieja-clave');
+  await login(fam, 'laia@example.com', 'clave-familia');
   const _csrf = await csrfOf(fam, '/tienda');
   await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: 1, quantity: 3 });
   await fam.post('/carrito/confirmar').type('form').send({ _csrf });
@@ -278,72 +302,32 @@ test('cancelación por la familia y recuperación de contraseña', async () => {
   // Recuperar: se crea un token; con él se genera nueva contraseña
   const anon = request.agent(app);
   const c2 = await csrfOf(anon, '/recuperar');
-  await anon.post('/recuperar').type('form').send({ _csrf: c2, usuario: '12345678Z' });
+  await anon.post('/recuperar').type('form').send({ _csrf: c2, usuario: 'Laia@Example.com' });
+  assert.strictEqual(db.prepare('SELECT COUNT(*) n FROM reset_tokens').get().n, 1);
+  // Correo inexistente: misma respuesta, sin token
+  await anon.post('/recuperar').type('form').send({ _csrf: c2, usuario: 'nadie@example.com' });
   assert.strictEqual(db.prepare('SELECT COUNT(*) n FROM reset_tokens').get().n, 1);
   // Simula el enlace: se sustituye el hash por uno conocido
-  const { sha256 } = require('../src/util');
   db.prepare('UPDATE reset_tokens SET token_hash = ?').run(sha256('tok'));
   const c3 = await csrfOf(anon, '/recuperar/tok');
   const res = await anon.post('/recuperar/tok').type('form').send({ _csrf: c3 });
   const newPassword = /class="secret">([^<]+)</.exec(res.text)[1];
-  assert.strictEqual((await login(request.agent(app), '12345678Z', newPassword)).status, 302);
-  assert.strictEqual((await login(request.agent(app), '12345678Z', 'vieja-clave')).status, 401);
+  assert.strictEqual((await login(request.agent(app), 'laia@example.com', newPassword)).status, 302);
+  assert.strictEqual((await login(request.agent(app), 'laia@example.com', 'clave-familia')).status, 401);
   // Token de un solo uso
   assert.strictEqual((await anon.get('/recuperar/tok')).status, 400);
 });
 
-test('alta por la comisión con correo: la cuenta queda activada y recibe la contraseña', async () => {
-  const { db, app, mails, sent } = setup({ brevo: true });
-  const adm = request.agent(app);
-  await login(adm, 'comision', 'admin-password');
-  let _csrf = await csrfOf(adm, '/admin/familias');
-
-  // Alta individual con correo
-  await adm.post('/admin/familias').type('form').send({ _csrf, dni: '87654321X', player_name: 'Marc Soler', email: 'marc@example.com' });
-  const marc = db.prepare("SELECT * FROM users WHERE dni = '87654321X'").get();
-  assert.ok(marc.activated_at);
-  assert.strictEqual(marc.email, 'marc@example.com');
-  await wait();
-  assert.ok(mails().some((m) => m.to_address === 'marc@example.com' && m.status === 'enviado'));
-  // Lo que se envía a la API de Brevo
-  const call = sent.find((c) => c.body.to[0].email === 'marc@example.com');
-  assert.strictEqual(call.url, 'https://api.brevo.com/v3/smtp/email');
-  assert.strictEqual(call.headers['api-key'], 'clave-de-prueba');
-  assert.deepStrictEqual(call.body.sender, { name: 'Comissió HC Ripollet', email: 'comissio@example.com' });
-  assert.match(call.body.textContent, /RIPO-/);
-
-  // Nadie puede «activarla» de nuevo con el DNI
-  const other = request.agent(app);
-  const c = await csrfOf(other, '/primer-acceso');
-  const res = await other.post('/primer-acceso').type('form').send({ _csrf: c, dni: '87654321X' });
-  assert.strictEqual(res.status, 409);
-
-  // Importación con correo: solo se envía a cuentas sin activar
-  db.prepare("UPDATE users SET email = 'laia@example.com', password_hash = 'x', activated_at = 'x' WHERE dni = '12345678Z'").run();
-  await adm.post('/admin/familias/importar').type('form').send({
-    _csrf,
-    csv: '12345678Z;Laia Pérez;7;Aleví A;otro@example.com\nX1234567L;Nil Garcia;3;Infantil;nil@example.com\nY0000000Z;Sin Correo;4;Infantil',
-  });
-  const laia = db.prepare("SELECT * FROM users WHERE dni = '12345678Z'").get();
-  assert.strictEqual(laia.email, 'laia@example.com', 'no cambia el correo ni la contraseña de quien ya entra');
-  assert.strictEqual(laia.password_hash, 'x');
-  assert.ok(db.prepare("SELECT activated_at FROM users WHERE dni = 'X1234567L'").get().activated_at);
-  assert.strictEqual(db.prepare("SELECT activated_at FROM users WHERE dni = 'Y0000000Z'").get().activated_at, null);
-
-  // Reenviar acceso desde la ficha: genera contraseña nueva
-  const before = db.prepare("SELECT password_hash FROM users WHERE dni = '87654321X'").get().password_hash;
-  _csrf = await csrfOf(adm, `/admin/familias/${marc.id}`);
-  await adm.post(`/admin/familias/${marc.id}/enviar-acceso`).type('form').send({ _csrf, email: 'marc@example.com' });
-  assert.notStrictEqual(db.prepare("SELECT password_hash FROM users WHERE dni = '87654321X'").get().password_hash, before);
-
-  // Una familia no puede dar de alta usuarios
+test('cambiar el correo de la cuenta: pasa a ser el usuario y no puede repetirse', async () => {
+  const { db, app } = setup();
+  db.prepare(`INSERT INTO users (role, email, password_hash, activated_at) VALUES ('family', 'otra@example.com', 'x', 'x')`).run();
   const fam = request.agent(app);
-  db.prepare("UPDATE users SET password_hash = ? WHERE dni = '12345678Z'").run(bcrypt.hashSync('clave-familia', 4));
-  await login(fam, '12345678Z', 'clave-familia');
-  const fc = await csrfOf(fam, '/tienda');
-  const denied = await fam.post('/admin/familias').type('form').send({ _csrf: fc, dni: '11111111H', player_name: 'Intruso' });
-  assert.strictEqual(denied.status, 403);
-  assert.strictEqual(db.prepare("SELECT COUNT(*) n FROM users WHERE dni = '11111111H'").get().n, 0);
+  await login(fam, 'laia@example.com', 'clave-familia');
+  const _csrf = await csrfOf(fam, '/cuenta');
+  await fam.post('/cuenta/email').type('form').send({ _csrf, email: 'otra@example.com' });
+  assert.ok(db.prepare("SELECT 1 FROM users WHERE email = 'laia@example.com'").get(), 'correo ya usado: no cambia');
+  await fam.post('/cuenta/email').type('form').send({ _csrf, email: 'laia.nueva@example.com' });
+  assert.strictEqual((await login(request.agent(app), 'laia.nueva@example.com', 'clave-familia')).status, 302);
 });
 
 test('web pública: portada, qui som y catálogo sin iniciar sesión; textos editables', async () => {
@@ -361,7 +345,7 @@ test('web pública: portada, qui som y catálogo sin iniciar sesión; textos edi
 
   res = await anon.get('/tienda');
   assert.strictEqual(res.status, 200);
-  assert.match(res.text, /href="\/login"/);
+  assert.match(res.text, /href="\/registro"/);
   assert.doesNotMatch(res.text, /action="\/carrito\/anadir"/, 'sin sesión no se puede añadir al carrito');
   res = await anon.get('/carrito');
   assert.strictEqual(res.headers.location, '/login');
@@ -392,9 +376,7 @@ test('web pública: portada, qui som y catálogo sin iniciar sesión; textos edi
 
 test('packs: se aplican solos en el carrito, se pueden añadir enteros y quedan en el pedido', async () => {
   const { db, app } = setup();
-  db.prepare("UPDATE users SET password_hash = ?, activated_at = 'x' WHERE dni = '12345678Z'").run(bcrypt.hashSync('clave-familia', 4));
-  db.prepare('INSERT INTO periods (name, starts_at, ends_at) VALUES (?, ?, ?)')
-    .run('P', new Date(Date.now() - 1000).toISOString(), new Date(Date.now() + 1e6).toISOString());
+  openPeriod(db);
   const product = db.prepare('INSERT INTO products (name, name_ca, price_cents, sizes, colors) VALUES (?, ?, ?, ?, ?)');
   const bufanda = product.run('Bufanda', 'Bufanda', 1000, null, 'Amarillo').lastInsertRowid;
   const camiseta = product.run('Camiseta afició', 'Samarreta afició', 1500, 'S, M', 'Azul claro, Amarillo').lastInsertRowid;
@@ -420,7 +402,7 @@ test('packs: se aplican solos en el carrito, se pueden añadir enteros y quedan 
   assert.match(res.text, /Pack AFICIÓ 1/);
 
   const fam = request.agent(app);
-  await login(fam, '12345678Z', 'clave-familia');
+  await login(fam, 'laia@example.com', 'clave-familia');
   _csrf = await csrfOf(fam, '/tienda');
 
   // Color obligatorio cuando hay varios; con un solo color se asigna solo.
@@ -444,7 +426,7 @@ test('packs: se aplican solos en el carrito, se pueden añadir enteros y quedan 
   assert.match(res.text, /45,00/);
 
   // Añadir el Pack AFICIÓ 1 entero, con sus elecciones.
-  res = await fam.post('/carrito/pack').type('form').send({ _csrf, pack_id: 1, [`size_${camiseta}`]: 'S' });
+  await fam.post('/carrito/pack').type('form').send({ _csrf, pack_id: 1, [`size_${camiseta}`]: 'S' });
   assert.strictEqual(db.prepare('SELECT SUM(quantity) n FROM cart_items').get().n, 3, 'sin color no se añade nada');
   await fam.post('/carrito/pack').type('form').send({ _csrf, pack_id: 1, [`size_${camiseta}`]: 'S', [`color_${camiseta}`]: 'Azul claro' });
   assert.strictEqual(db.prepare('SELECT SUM(quantity) n FROM cart_items').get().n, 5);
@@ -467,44 +449,52 @@ test('packs: se aplican solos en el carrito, se pueden añadir enteros y quedan 
   assert.match(res.text, /67,00/);
 });
 
-test('sin servicio de correo: no se activa la cuenta con una contraseña que nadie recibe', async () => {
-  const { db, app } = setup();
-  const adm = request.agent(app);
-  await login(adm, 'comision', 'admin-password');
-  const _csrf = await csrfOf(adm, '/admin/familias');
-  await adm.post('/admin/familias').type('form').send({ _csrf, dni: '87654321X', player_name: 'Marc Soler', email: 'marc@example.com' });
-  const marc = db.prepare("SELECT * FROM users WHERE dni = '87654321X'").get();
-  assert.strictEqual(marc.activated_at, null, 'queda para el «Primer acceso»');
-  assert.strictEqual(marc.password_hash, null);
-  assert.strictEqual(marc.email, 'marc@example.com');
-  const res = await adm.get('/admin/familias');
-  assert.match(res.text, /Primer acc/);
-  assert.doesNotMatch(res.text, /Se ha enviado la contraseña|S&#39;ha enviat la contrasenya/);
-});
+test('correos por Brevo: remitente, contraseña y QR enlazado (imagen de la web) y adjunto', async () => {
+  const { db, app, sent, mails } = setup({ brevo: true });
 
-test('correo con QR por Brevo: el QR va enlazado (imagen de la web) y adjunto', async () => {
-  const { db, app, sent } = setup({ brevo: true });
-  db.prepare("UPDATE users SET email = 'f@example.com', password_hash = ?, activated_at = 'x' WHERE dni = '12345678Z'").run(bcrypt.hashSync('clave-familia', 4));
+  // Alta: el correo con la contraseña sale por la API de Brevo
+  const anon = request.agent(app);
+  let _csrf = await csrfOf(anon, '/registro');
+  let res = await anon.post('/registro').type('form').send({ _csrf, email: 'marc@example.com', email2: 'marc@example.com' });
+  assert.doesNotMatch(res.text, /No se ha podido|no està configurat/);
+  await wait();
+  assert.ok(mails().some((m) => m.to_address === 'marc@example.com' && m.status === 'enviado'));
+  const call = sent.find((c) => c.body.to[0].email === 'marc@example.com');
+  assert.strictEqual(call.url, 'https://api.brevo.com/v3/smtp/email');
+  assert.strictEqual(call.headers['api-key'], 'clave-de-prueba');
+  assert.deepStrictEqual(call.body.sender, { name: 'Comissió HC Ripollet', email: 'comissio@example.com' });
+  assert.match(call.body.textContent, /RIPO-/);
+
+  // Pedido: el QR va como imagen de la web y además adjunto
   db.prepare("INSERT INTO products (name, price_cents) VALUES ('Bufanda', 1000)").run();
-  db.prepare('INSERT INTO periods (name, starts_at, ends_at) VALUES (?, ?, ?)')
-    .run('P', new Date(Date.now() - 1000).toISOString(), new Date(Date.now() + 1e6).toISOString());
+  openPeriod(db);
   const fam = request.agent(app);
-  await login(fam, '12345678Z', 'clave-familia');
-  const _csrf = await csrfOf(fam, '/tienda');
+  await login(fam, 'laia@example.com', 'clave-familia');
+  _csrf = await csrfOf(fam, '/tienda');
   await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: 1, quantity: 1 });
   await fam.post('/carrito/confirmar').type('form').send({ _csrf });
   await wait();
   const order = db.prepare('SELECT * FROM orders').get();
-  const mail = sent.find((c) => c.body.to[0].email === 'f@example.com');
+  const mail = sent.find((c) => c.body.to[0].email === 'laia@example.com');
   assert.ok(mail.body.htmlContent.includes(`/qr-img/${order.pay_token}.png`));
   assert.ok(!mail.body.htmlContent.includes('cid:'));
   assert.strictEqual(mail.body.attachment[0].name, 'qr.png');
   assert.ok(Buffer.from(mail.body.attachment[0].content, 'base64').subarray(1, 4).toString() === 'PNG');
 
-  // La imagen solo existe para tokens reales
-  let res = await request(app).get(`/qr-img/${order.pay_token}.png`);
+  // La imagen solo existe para pedidos reales
+  res = await request(app).get(`/qr-img/${order.pay_token}.png`);
   assert.strictEqual(res.status, 200);
   assert.strictEqual(res.headers['content-type'], 'image/png');
   res = await request(app).get(`/qr-img/${'0'.repeat(64)}.png`);
   assert.strictEqual(res.status, 404);
+
+  // Comprobante de pago: sin QR
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  const c = await csrfOf(adm, `/admin/qr/${order.pay_token}`);
+  await adm.post(`/admin/qr/${order.pay_token}/cobrar`).type('form').send({ _csrf: c });
+  await wait();
+  const receipt = sent.filter((s) => s.body.to[0].email === 'laia@example.com').pop();
+  assert.match(receipt.body.textContent, /COMPROVANT|COMPROBANTE/);
+  assert.strictEqual(receipt.body.attachment, undefined, 'el comprobante no lleva QR');
 });

@@ -17,18 +17,18 @@
     </select>
   </label>
   <label class="grow"><%= t('Buscar') %>
-    <input name="q" value="<%= q.q || '' %>" placeholder="<%= t('Nombre, DNI, correo, nº pedido o código') %>">
+    <input name="q" value="<%= q.q || '' %>" placeholder="<%= t('Correo o nº de pedido') %>">
   </label>
   <button class="btn"><%= t('Filtrar') %></button>
 </form>
 
 <% if (toNotify) { %>
   <form method="post" action="/admin/pedidos/avisar-recogida" class="card highlight form"
-        data-confirm="<%= t('Se enviará un correo con el QR de recogida a {n} familia(s). ¿Continuar?', { n: toNotify }) %>">
+        data-confirm="<%= t('Se enviará un correo con el QR de su pedido a {n} cliente(s). ¿Continuar?', { n: toNotify }) %>">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
     <% if (q.periodo) { %><input type="hidden" name="periodo" value="<%= q.periodo %>"><% } %>
     <h2>📦 <%= t('¿Ha llegado el material?') %></h2>
-    <p class="small"><%= t('{n} pedido(s) pagado(s) aún no tienen el aviso de recogida. Se enviará un correo a cada familia con su QR de recogida.', { n: toNotify }) %></p>
+    <p class="small"><%= t('{n} pedido(s) pagado(s) aún no tienen el aviso de recogida. Se enviará un correo a cada cliente con el QR de su pedido.', { n: toNotify }) %></p>
     <label><%= t('Mensaje opcional (día, hora y lugar de recogida)') %>
       <textarea name="message" rows="2" maxlength="500" placeholder="<%= t('Ej.: Sábado de 10 a 12 h en el pabellón.') %>"></textarea>
     </label>
@@ -39,23 +39,30 @@
 <p class="muted"><%= t('{n} pedido(s)', { n: list.length }) %> · <%= t('total') %> <strong><%= formatMoney(total) %></strong></p>
 <div class="card table-wrap">
   <table class="table">
-    <thead><tr><th><%= t('Pedido') %></th><th><%= t('Jugador/a') %></th><th><%= t('Fecha') %></th><th><%= t('Art.') %></th><th class="num"><%= t('Importe') %></th><th><%= t('Estado') %></th><th><%= t('Acción rápida') %></th></tr></thead>
+    <thead><tr><th><%= t('Pedido') %></th><th><%= t('Cliente') %></th><th><%= t('Fecha') %></th><th><%= t('Art.') %></th><th class="num"><%= t('Importe') %></th><th><%= t('Estado') %></th><th><%= t('Acción rápida') %></th></tr></thead>
     <tbody>
     <% list.forEach(o => { %>
       <tr>
         <td><a href="/admin/pedidos/<%= o.id %>"><strong><%= orderCode(o.id) %></strong></a></td>
-        <td><%= o.player_name %><br><span class="muted small"><%= o.dni %><%= o.player_number ? ' · #' + o.player_number : '' %></span></td>
+        <td><%= customerLabel(o) %></td>
         <td class="small"><%= formatDate(o.created_at) %></td>
         <td><%= o.units %></td>
         <td class="num"><%= formatMoney(o.total_cents) %></td>
         <td><%- include('../partials/status', { status: o.status }) %><% if (o.status === 'pendiente_entrega' && o.ready_at) { %><br><span class="small muted"><%= t('avisado') %></span><% } %></td>
         <td>
           <% if (o.status === 'pendiente_pago') { %>
-            <form method="post" action="/admin/pedidos/<%= o.id %>/estado" data-confirm="<%= t('¿Has cobrado {amount} de {name}?', { amount: formatMoney(o.total_cents), name: o.player_name }) %>">
+            <form method="post" action="/admin/pedidos/<%= o.id %>/estado" data-confirm="<%= t('¿Has cobrado {amount} de {name}?', { amount: formatMoney(o.total_cents), name: customerLabel(o) }) %>">
               <input type="hidden" name="_csrf" value="<%= csrf %>">
               <input type="hidden" name="status" value="pendiente_entrega">
               <input type="hidden" name="back" value="list">
               <button class="btn small primary"><%= t('Marcar pagado') %></button>
+            </form>
+          <% } else if (o.status === 'pendiente_entrega') { %>
+            <form method="post" action="/admin/pedidos/<%= o.id %>/estado" data-confirm="<%= t('¿Marcar el pedido {code} como entregado?', { code: orderCode(o.id) }) %>">
+              <input type="hidden" name="_csrf" value="<%= csrf %>">
+              <input type="hidden" name="status" value="entregado">
+              <input type="hidden" name="back" value="list">
+              <button class="btn small primary"><%= t('Marcar entregado') %></button>
             </form>
           <% } else { %>
             <a class="btn small ghost" href="/admin/pedidos/<%= o.id %>"><%= t('Ver') %></a>

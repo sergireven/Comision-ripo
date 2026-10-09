@@ -117,7 +117,7 @@ function createMailer(db, { fetchImpl } = {}) {
   }
 
   const langOf = (user) => user.lang || DEFAULT_LANG;
-  const who = (user) => user.player_name || user.dni || user.username;
+  const who = (user) => user.player_name || user.email || user.dni || user.username;
   const qrUrl = (appUrl, token) => `${appUrl}/admin/qr/${token}`;
 
   return {
@@ -129,8 +129,8 @@ function createMailer(db, { fetchImpl } = {}) {
       const lang = langOf(user);
       const t = (k, p) => translate(lang, k, p);
       return send(user.email, t('Tu acceso a la tienda del club'),
-        `${t('Hola,')}\n\n${t('Se ha activado la cuenta de la tienda para {name}.', { name: who(user) })}\n\n`
-        + `${t('Usuario (DNI)')}: ${user.dni}\n${t('Contraseña')}: ${password}\n\n`
+        `${t('Hola,')}\n\n${t('Se ha creado tu cuenta en la tienda del club.')}\n\n`
+        + `${t('Usuario')}: ${user.email}\n${t('Contraseña')}: ${password}\n\n`
         + `${t('Entra en {url}', { url: `${appUrl}/login` })}\n${t('Guarda este correo: necesitarás la contraseña para volver a entrar.')}`,
         { lang });
     },
@@ -140,7 +140,7 @@ function createMailer(db, { fetchImpl } = {}) {
       const t = (k, p) => translate(lang, k, p);
       return send(user.email, t('Recuperar acceso'),
         `${t('Hola,')}\n\n${t('Hemos recibido una solicitud para recuperar el acceso de {name}.', { name: who(user) })}\n\n`
-        + `${t('Usuario')}: ${user.dni || user.username}\n\n${t('Para generar una contraseña nueva abre este enlace (válido 1 hora):')}\n${link}\n\n`
+        + `${t('Usuario')}: ${user.email || user.username}\n\n${t('Para generar una contraseña nueva abre este enlace (válido 1 hora):')}\n${link}\n\n`
         + t('Si no lo has pedido tú, ignora este correo: tu contraseña actual sigue funcionando.'), { lang });
     },
 
@@ -148,7 +148,7 @@ function createMailer(db, { fetchImpl } = {}) {
       const lang = langOf(user);
       const t = (k, p) => translate(lang, k, p);
       return send(user.email, t('Tu nueva contraseña'),
-        `${t('Hola,')}\n\n${t('Contraseña')}: ${password}\n${t('Usuario')}: ${user.dni || user.username}`, { lang });
+        `${t('Hola,')}\n\n${t('Contraseña')}: ${password}\n${t('Usuario')}: ${user.email || user.username}`, { lang });
     },
 
     emailChanged(user, email) {
@@ -166,10 +166,10 @@ function createMailer(db, { fetchImpl } = {}) {
         `${t('Hola,')}\n\n${t('Hemos recibido el pedido {code} de {name}.', { code, name: who(user) })}\n\n`
         + `${itemsText(lang, items)}\n\n${t('Total a pagar')}: ${formatMoney(order.total_cents)}\n\n`
         + `${t('Estado: PENDIENTE DE PAGO. El pago se hace en mano a la comisión.')}\n`
-        + `${t('Cuando pagues, enseña este QR de pago: la comisión lo escaneará y recibirás al momento el comprobante y el QR de recogida.')}\n`
+        + `${t('Enseña este QR cuando pagues y también cuando vayas a recoger el material: es el único que necesitas.')}\n`
         + `${t('Mientras no esté pagado puedes cancelarlo desde la web.')}\n\n`
         + t('Consulta tus pedidos en {url}', { url: `${appUrl}/pedidos` }),
-        { lang, qr: qrUrl(appUrl, order.pay_token), qrCaption: t('QR de pago · pedido {code}', { code }) });
+        { lang, qr: qrUrl(appUrl, order.pay_token), qrCaption: t('QR del pedido {code}', { code }) });
       if (adminEmail) {
         send(adminEmail, translate(adminLang, 'Nuevo pedido {code} · {name}', { code, name: who(user) }),
           `${itemsText(adminLang, items)}\n\n${translate(adminLang, 'Total')}: ${formatMoney(order.total_cents)}\n${appUrl}/admin/pedidos/${order.id}`,
@@ -190,15 +190,14 @@ function createMailer(db, { fetchImpl } = {}) {
           `${intro}${t('COMPROBANTE DE PAGO')}\n${t('Hemos recibido {amount} en mano', { amount: formatMoney(order.total_cents) })}`
           + `${collector ? ` (${t('registrado por {who}', { who: collector })})` : ''} · ${new Date(order.paid_at).toLocaleString(lang === 'ca' ? 'ca-ES' : 'es-ES', { timeZone: 'Europe/Madrid' })}.\n\n`
           + `${t('El pedido está PENDIENTE DE ENTREGA. Te avisaremos cuando esté listo para recoger.')}\n`
-          + `${t('Para recogerlo enseña este QR de recogida (también lo tienes en la web). Código de recogida: {pickup}', { pickup: order.pickup_code })}\n`
-          + `${t('No lo compartas: quien tenga este QR puede recoger el pedido.')}${tail}`,
-          { lang, qr: qrUrl(appUrl, order.pickup_token), qrCaption: t('QR de recogida · pedido {code}', { code }) });
+          + `${t('Para recogerlo, enseña el mismo QR del pedido (lo tienes en el correo del pedido y en «Mis pedidos» de la web).')}${tail}`,
+          { lang });
         return;
       }
       const messages = {
         entregado: t('El pedido se ha marcado como ENTREGADO. ¡Que lo disfrutéis! Si hay algún problema, habla con la comisión.'),
         cancelado: t('El pedido se ha CANCELADO.'),
-        pendiente_pago: t('El pedido vuelve a estar PENDIENTE DE PAGO ({amount}). El QR de recogida anterior ya no es válido.', { amount: formatMoney(order.total_cents) }),
+        pendiente_pago: t('El pedido vuelve a estar PENDIENTE DE PAGO ({amount}).', { amount: formatMoney(order.total_cents) }),
       };
       send(user.email, subject, `${intro}${messages[order.status]}${tail}`, { lang });
       if (adminEmail && order.status === 'cancelado') {
@@ -215,8 +214,8 @@ function createMailer(db, { fetchImpl } = {}) {
       return send(user.email, t('¡Tu pedido {code} ya se puede recoger!', { code }),
         `${t('Hola,')}\n\n${t('El material del pedido {code} ({name}) ya ha llegado.', { code, name: who(user) })}\n\n`
         + `${message ? `${message}\n\n` : ''}`
-        + t('Para recogerlo enseña este QR a la comisión. Código de recogida: {pickup}', { pickup: order.pickup_code }),
-        { lang, qr: qrUrl(appUrl, order.pickup_token), qrCaption: t('QR de recogida · pedido {code}', { code }) });
+        + t('Para recogerlo, enseña este QR a la comisión.'),
+        { lang, qr: qrUrl(appUrl, order.pay_token), qrCaption: t('QR del pedido {code}', { code }) });
     },
   };
 }

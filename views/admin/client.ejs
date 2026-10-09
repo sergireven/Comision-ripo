@@ -1,0 +1,41 @@
+<%- include('../partials/header') %>
+<p><a href="/admin/clientes">← <%= t('Clientes') %></a></p>
+<h1><%= customerLabel(client) %></h1>
+<div class="grid two">
+  <section class="card">
+    <h2><%= t('Datos') %></h2>
+    <dl class="kv">
+      <dt><%= t('Correo') %></dt><dd><%= client.email ? client.email : '—' %></dd>
+      <dt><%= t('Alta') %></dt><dd><%= formatDate(client.created_at) %></dd>
+      <dt><%= t('Idioma') %></dt><dd><%= client.lang === 'es' ? 'Castellano' : 'Català' %></dd>
+    </dl>
+  </section>
+  <section class="card">
+    <h2><%= t('Acceso') %></h2>
+    <% if (client.email) { %>
+      <form method="post" action="/admin/clientes/<%= client.id %>/nueva-contrasena" class="form"
+            data-confirm="<%= t('Se generará una contraseña nueva y la actual dejará de funcionar. ¿Continuar?') %>">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <button class="btn"><%= t('Generar contraseña nueva') %></button>
+        <p class="hint"><%= t('Normalmente no hace falta: la persona puede usar «He olvidado mi contraseña». Úsalo si no le llegan los correos.') %></p>
+      </form>
+    <% } %>
+    <% if (!list.length) { %>
+      <form method="post" action="/admin/clientes/<%= client.id %>/eliminar" data-confirm="<%= t('¿Eliminar a {name}?', { name: customerLabel(client) }) %>">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <button class="btn danger ghost small"><%= t('Eliminar cuenta') %></button>
+      </form>
+    <% } %>
+  </section>
+</div>
+<h2><%= t('Pedidos') %></h2>
+<div class="order-list">
+  <% list.forEach(o => { %>
+    <a class="card order-row" href="/admin/pedidos/<%= o.id %>">
+      <div><strong><%= orderCode(o.id) %></strong><br><span class="muted small"><%= formatDate(o.created_at) %></span></div>
+      <div class="right"><%- include('../partials/status', { status: o.status }) %><br><strong><%= formatMoney(o.total_cents) %></strong></div>
+    </a>
+  <% }) %>
+  <% if (!list.length) { %><p class="muted"><%= t('Sin pedidos.') %></p><% } %>
+</div>
+<%- include('../partials/footer') %>

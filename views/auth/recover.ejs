@@ -3,15 +3,15 @@
   <div class="card narrow">
     <h1><%= t('Recuperar acceso') %></h1>
     <% if (typeof sent !== 'undefined') { %>
-      <div class="flash ok"><%= t('Si el DNI está registrado y activado, hemos enviado un enlace al correo de contacto de la cuenta. Revisa también la carpeta de spam.') %></div>
-      <p class="muted"><%= t('¿Ya no tienes acceso a ese correo? Pide a la comisión que reinicie tu acceso.') %></p>
+      <div class="flash ok"><%= t('Si hay una cuenta con ese correo, te hemos enviado un enlace para generar una contraseña nueva. Revisa también la carpeta de spam.') %></div>
+      <p class="muted"><%= t('¿No te llega? Habla con la comisión.') %></p>
     <% } else { %>
       <% if (typeof error !== 'undefined') { %><div class="flash error"><%= t(error) %></div><% } %>
-      <p><%= t('Te enviaremos un enlace al correo asociado a la cuenta para generar una contraseña nueva.') %></p>
+      <p><%= t('Te enviaremos un enlace al correo de tu cuenta para generar una contraseña nueva.') %></p>
       <form method="post" action="/recuperar" class="form">
         <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <label><%= t('DNI del jugador/a (o usuario)') %>
-          <input name="usuario" autocapitalize="characters" required autofocus>
+        <label><%= t('Correo electrónico') %>
+          <input name="usuario" inputmode="email" autocapitalize="none" required autofocus>
         </label>
         <button class="btn primary block"><%= t('Enviar enlace') %></button>
       </form>

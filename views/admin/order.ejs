@@ -7,13 +7,9 @@
 
 <div class="grid two">
   <section class="card">
-    <h2><%= t('Familia') %></h2>
+    <h2><%= t('Cliente') %></h2>
     <dl class="kv">
-      <dt><%= t('Jugador/a') %></dt><dd><a href="/admin/familias/<%= family.id %>"><%= family.player_name %></a></dd>
-      <dt>DNI</dt><dd><%= family.dni %></dd>
-      <% if (family.player_number) { %><dt><%= t('Dorsal') %></dt><dd><%= family.player_number %></dd><% } %>
-      <% if (family.team) { %><dt><%= t('Equipo') %></dt><dd><%= family.team %></dd><% } %>
-      <dt><%= t('Correo') %></dt><dd><%= family.email || '—' %></dd>
+      <dt><%= t('Correo') %></dt><dd><a href="/admin/clientes/<%= family.id %>"><%= customerLabel(family) %></a></dd>
       <dt><%= t('Pedido el') %></dt><dd><%= formatDate(order.created_at) %></dd>
       <% if (order.paid_at) { %><dt><%= t('Pagado el') %></dt><dd><%= formatDate(order.paid_at) %><%= paidBy ? ' · ' + paidBy : '' %></dd><% } %>
       <% if (order.ready_at) { %><dt><%= t('Aviso de recogida') %></dt><dd><%= formatDate(order.ready_at) %></dd><% } %>
@@ -28,29 +24,16 @@
         <input type="hidden" name="_csrf" value="<%= csrf %>">
         <input type="hidden" name="status" value="pendiente_entrega">
         <button class="btn primary block big"><%= t('Cobrado {amount}', { amount: formatMoney(order.total_cents) }) %></button>
-        <p class="hint"><%= t('Lo más rápido es escanear el QR de pago de la familia.') %></p>
+        <p class="hint"><%= t('Lo más rápido es escanear el QR del pedido.') %></p>
       </form>
     <% } %>
     <% if (order.status === 'pendiente_entrega') { %>
-      <form method="post" action="/admin/pedidos/<%= order.id %>/estado" class="form">
+      <form method="post" action="/admin/pedidos/<%= order.id %>/estado" class="form" data-confirm="<%= t('¿Marcar el pedido {code} como entregado?', { code: orderCode(order.id) }) %>">
         <input type="hidden" name="_csrf" value="<%= csrf %>">
         <input type="hidden" name="status" value="entregado">
-        <label><%= t('Código de recogida que enseña la familia') %>
-          <input name="code" autocapitalize="characters" maxlength="6" placeholder="K7QM3X" required>
-        </label>
-        <button class="btn primary block"><%= t('Confirmar entrega') %></button>
-        <p class="hint"><%= t('O escanea su QR de recogida.') %></p>
+        <button class="btn primary block big">✔ <%= t('Marcar entregado') %></button>
+        <p class="hint"><%= t('También puedes escanear el QR del pedido.') %></p>
       </form>
-      <details class="small">
-        <summary><%= t('La familia no tiene el QR ni el código') %></summary>
-        <form method="post" action="/admin/pedidos/<%= order.id %>/estado" class="form" data-confirm="<%= t('¿Marcar como entregado sin código? Quedará registrado.') %>">
-          <input type="hidden" name="_csrf" value="<%= csrf %>">
-          <input type="hidden" name="status" value="entregado">
-          <input type="hidden" name="force" value="1">
-          <label><%= t('Motivo / quién lo recoge') %> <input name="note" maxlength="300" required></label>
-          <button class="btn ghost"><%= t('Marcar entregado sin código') %></button>
-        </form>
-      </details>
     <% } %>
 
     <% const other = transitions.filter(s => !(order.status === 'pendiente_pago' && s === 'pendiente_entrega') && s !== 'entregado'); %>

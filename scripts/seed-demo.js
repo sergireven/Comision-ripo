@@ -12,11 +12,10 @@ db.transaction(() => {
       VALUES ('admin', 'comision', ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), 'Comisión')`)
       .run(bcrypt.hashSync('comision-demo', 10));
   }
-  const fam = db.prepare(`INSERT OR IGNORE INTO users (role, dni, player_name, player_number, team)
-    VALUES ('family', ?, ?, ?, ?)`);
-  fam.run('12345678Z', 'Laia Pérez Gómez', '7', 'Alevín A');
-  fam.run('87654321X', 'Marc Soler Ruiz', '12', 'Benjamín B');
-  fam.run('X1234567L', 'Nil Garcia Vidal', '3', 'Infantil');
+  if (!db.prepare("SELECT 1 FROM users WHERE role = 'family' AND email = 'familia@example.com'").get()) {
+    db.prepare(`INSERT INTO users (role, email, password_hash, activated_at)
+      VALUES ('family', 'familia@example.com', ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`).run(bcrypt.hashSync('familia-demo', 10));
+  }
 
   if (!db.prepare('SELECT 1 FROM products').get()) {
     const p = db.prepare(`INSERT INTO products (category_id, name, name_ca, description, description_ca, price_cents, personalization, sizes)
@@ -38,4 +37,4 @@ db.transaction(() => {
 
 console.log('Datos de ejemplo cargados.');
 console.log('  Comisión: usuario "comision", contraseña "comision-demo"');
-console.log('  Familias (hacer «Primer acceso»): 12345678Z, 87654321X, X1234567L');
+console.log('  Cliente de prueba: familia@example.com / familia-demo (o crea una cuenta nueva con tu correo)');

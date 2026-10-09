@@ -8,8 +8,8 @@ const { flash, requireAdmin } = require('../middleware');
 const { TRANSITIONS } = require('../services');
 const { TEXT_KEYS, CONTACT_KEYS, getSettings, saveSettings } = require('../settings');
 const {
-  normalizeDni, isValidDni, isValidEmail, generatePassword, parseMoney, fromLocalInput, slugify, orderCode, STATUS, formatDate,
-  instagramUrl,
+  normalizeDni, isValidEmail, generatePassword, parseMoney, fromLocalInput, slugify, orderCode, STATUS, formatDate,
+  instagramUrl, customerLabel,
 } = require('../util');
 
 const STATUSES = Object.keys(STATUS);
@@ -51,7 +51,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       .forEach((r) => { stats[r.status] = { n: r.n, total: r.total || 0 }; });
     const families = db.prepare(`SELECT COUNT(*) AS total, COUNT(activated_at) AS active
       FROM users WHERE role = 'family'`).get();
-    const recent = db.prepare(`SELECT o.*, u.player_name, u.dni FROM orders o JOIN users u ON u.id = o.user_id
+    const recent = db.prepare(`SELECT o.*, u.player_name, u.email FROM orders o JOIN users u ON u.id = o.user_id
       ORDER BY o.id DESC LIMIT 8`).all();
     // Dinero cobrado por cada miembro de la comisión: sirve para cuadrar la caja.
     const cash = db.prepare(`SELECT u.username, u.player_name, COUNT(*) AS n, SUM(o.total_cents) AS total
@@ -70,15 +70,15 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     if (query.periodo) { where.push('o.period_id = ?'); params.push(Number(query.periodo)); }
     if (query.q) {
       const q = `%${String(query.q).trim()}%`;
-      where.push('(u.player_name LIKE ? OR u.dni LIKE ? OR u.email LIKE ? OR o.pickup_code LIKE ? OR CAST(o.id AS TEXT) = ?)');
-      params.push(q, q, q, q, String(query.q).replace(/^#?0*/, ''));
+      where.push("(u.email LIKE ? OR COALESCE(u.player_name, '') LIKE ? OR CAST(o.id AS TEXT) = ?)");
+      params.push(q, q, String(query.q).replace(/^#?0*/, ''));
     }
     return { sql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
   }
 
   router.get('/pedidos', (req, res) => {
     const { sql, params } = orderFilters(req.query);
-    const list = db.prepare(`SELECT o.*, u.player_name, u.dni, u.player_number, u.email,
+    const list = db.prepare(`SELECT o.*, u.player_name, u.email,
         (SELECT SUM(quantity) FROM order_items WHERE order_id = o.id AND kind != 'pack') AS units
       FROM orders o JOIN users u ON u.id = o.user_id ${sql} ORDER BY o.id DESC`).all(...params);
     const total = list.reduce((s, o) => s + o.total_cents, 0);
@@ -89,7 +89,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
 
   router.get('/pedidos.csv', (req, res) => {
     const { sql, params } = orderFilters(req.query);
-    const rows = db.prepare(`SELECT o.id, o.status, o.created_at, o.paid_at, o.delivered_at, u.player_name, u.dni,
+    const rows = db.prepare(`SELECT o.id, o.status, o.created_at, o.paid_at, o.delivered_at,
         u.email, i.kind, i.product_name, i.color, i.option_value, i.size, i.custom_name, i.custom_number, i.quantity, i.unit_price_cents,
         c.username AS collector
       FROM orders o JOIN users u ON u.id = o.user_id JOIN order_items i ON i.order_id = o.id
@@ -98,11 +98,11 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     const t = req.t;
     const fd = (iso) => formatDate(iso, true, req.lang);
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const header = ['Pedido', 'Estado', 'Fecha', 'Pagado', 'Cobrado por', 'Entregado', 'Jugador/a', 'DNI', 'Correo', 'Tipo', 'Producto',
+    const header = ['Pedido', 'Estado', 'Fecha', 'Pagado', 'Cobrado por', 'Entregado', 'Correo', 'Tipo', 'Producto',
       'Color', 'Modelo', 'Talla', 'Nombre jugador', 'Dorsal', 'Cantidad', 'Precio unidad', 'Importe'].map((h) => t(h));
     const kindLabel = { product: 'Artículo', pack: 'Descuento', gift: 'Regalo' };
     const lines = rows.map((r) => [orderCode(r.id), t(STATUS[r.status].label), fd(r.created_at), fd(r.paid_at), r.collector,
-      fd(r.delivered_at), r.player_name, r.dni, r.email, t(kindLabel[r.kind] || 'Artículo'), r.product_name, r.color, r.option_value,
+      fd(r.delivered_at), r.email, t(kindLabel[r.kind] || 'Artículo'), r.product_name, r.color, r.option_value,
       r.size, r.custom_name, r.custom_number,
       r.quantity, (r.unit_price_cents / 100).toFixed(2).replace('.', ','),
       ((r.unit_price_cents * r.quantity) / 100).toFixed(2).replace('.', ',')].map(esc).join(';'));
@@ -123,7 +123,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       mark.run(now, order.id);
       mailer.readyForPickup(userOf(order), order, req.appUrl, message);
     }
-    flash(req, 'ok', 'Aviso de recogida enviado a {n} familia(s).', { n: pending.length });
+    flash(req, 'ok', 'Aviso de recogida enviado a {n} cliente(s).', { n: pending.length });
     res.redirect('/admin/pedidos?estado=pendiente_entrega');
   });
 
@@ -145,39 +145,29 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     const status = String(req.body.status || '');
     let note = String(req.body.note || '').trim().slice(0, 300) || null;
     if (status === 'pendiente_entrega' && order.status === 'pendiente_pago') note = 'Cobrado sin QR';
-    if (status === 'entregado') {
-      const code = String(req.body.code || '').trim().toUpperCase();
-      if (code) {
-        if (code !== order.pickup_code) {
-          flash(req, 'error', 'El código de recogida no coincide con el de este pedido.');
-          return res.redirect(`/admin/pedidos/${order.id}`);
-        }
-        note = 'Entregado con código de recogida';
-      } else if (req.body.force === '1' && note) {
-        note = `Entregado SIN QR/código: ${note}`;
-      } else {
-        flash(req, 'error', 'Para marcar como entregado escanea el QR de recogida o introduce su código.');
-        return res.redirect(`/admin/pedidos/${order.id}`);
-      }
-    }
+    if (status === 'entregado' && order.status === 'pendiente_entrega') note = 'Entregado sin QR';
     applyStatus(req, order, status, note);
-    res.redirect(req.body.back === 'list' ? '/admin/pedidos?estado=pendiente_pago' : `/admin/pedidos/${order.id}`);
+    // Desde la lista de pedidos se vuelve a la misma lista (con sus filtros).
+    let back = `/admin/pedidos/${order.id}`;
+    if (req.body.back === 'list') {
+      back = '/admin/pedidos';
+      try {
+        const ref = new URL(req.get('referer') || '');
+        if (ref.host === req.get('host') && ref.pathname === '/admin/pedidos') back = ref.pathname + ref.search;
+      } catch { /* sin referer válido */ }
+    }
+    res.redirect(back);
   });
 
-  // ---------- Escáner: QR de pago / QR de recogida ----------
+  // ---------- Escáner: el QR del pedido sirve para cobrar y para entregar ----------
   router.get('/escanear', (req, res) => {
-    if (req.query.codigo) {
-      const order = db.prepare('SELECT * FROM orders WHERE pickup_code = ?').get(String(req.query.codigo).trim().toUpperCase());
-      if (order) return res.redirect(`/admin/qr/${order.pickup_token}`);
-      return res.status(404).render('admin/scan', { title: 'Escanear', error: 'No hay ningún pedido con ese código de recogida.' });
-    }
     res.render('admin/scan', { title: 'Escanear' });
   });
 
   function scanned(req, res) {
     const found = orders.findByToken(req.params.token);
     if (!found) {
-      res.status(404).render('error', { title: 'QR no válido', message: 'Este QR no corresponde a ningún pedido. Puede ser un QR antiguo: pide a la familia que abra el pedido en la web.' });
+      res.status(404).render('error', { title: 'QR no válido', message: 'Este QR no corresponde a ningún pedido. Pide a la persona que abra el pedido en la web o búscalo en «Pedidos».' });
       return null;
     }
     return found;
@@ -186,9 +176,9 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
   router.get('/qr/:token', (req, res) => {
     const found = scanned(req, res);
     if (!found) return;
-    const { order, kind } = found;
+    const { order } = found;
     res.render('admin/scan-result', {
-      title: req.t('Pedido {code}', { code: orderCode(order.id) }), order, kind, token: req.params.token,
+      title: req.t('Pedido {code}', { code: orderCode(order.id) }), order, token: req.params.token,
       family: userOf(order), items: orders.orderItems(order.id),
     });
   });
@@ -196,10 +186,10 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
   router.post('/qr/:token/cobrar', (req, res) => {
     const found = scanned(req, res);
     if (!found) return;
-    if (found.kind !== 'pago' || found.order.status !== 'pendiente_pago') {
+    if (found.order.status !== 'pendiente_pago') {
       flash(req, 'error', 'Este pedido ya no está pendiente de pago.');
-    } else if (applyStatus(req, found.order, 'pendiente_entrega', 'Cobrado con QR de pago')) {
-      flash(req, 'ok', 'Cobro registrado. La familia ha recibido el comprobante y el QR de recogida por correo.');
+    } else if (applyStatus(req, found.order, 'pendiente_entrega', 'Cobrado con QR')) {
+      flash(req, 'ok', 'Cobro registrado. Se ha enviado el comprobante por correo.');
     }
     res.redirect(`/admin/qr/${req.params.token}`);
   });
@@ -207,10 +197,10 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
   router.post('/qr/:token/entregar', (req, res) => {
     const found = scanned(req, res);
     if (!found) return;
-    if (found.kind !== 'recogida') {
-      flash(req, 'error', 'Este es el QR de pago. Para entregar hay que escanear el QR de recogida.');
+    if (found.order.status !== 'pendiente_entrega') {
+      flash(req, 'error', 'Este pedido no está pendiente de entrega.');
     } else {
-      applyStatus(req, found.order, 'entregado', 'Entregado con QR de recogida');
+      applyStatus(req, found.order, 'entregado', 'Entregado con QR');
     }
     res.redirect(`/admin/qr/${req.params.token}`);
   });
@@ -232,7 +222,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       FROM order_items i JOIN orders o ON o.id = i.order_id
       WHERE i.kind = 'pack' AND o.status IN (${marks}) ${periodSql}`).get(...params).amount;
     const custom = db.prepare(`SELECT i.product_name, i.product_name_ca, i.color, i.option_value, i.size, i.custom_name, i.custom_number, i.quantity, o.id AS order_id,
-        o.status, u.player_name
+        o.status, u.player_name, u.email
       FROM order_items i JOIN orders o ON o.id = i.order_id JOIN users u ON u.id = o.user_id
       WHERE i.custom_name IS NOT NULL AND o.status IN (${marks}) ${periodSql}
       ORDER BY i.product_name, CAST(i.custom_number AS INTEGER)`).all(...params);
@@ -552,166 +542,54 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     res.redirect('/admin/web');
   });
 
-  // ---------- Familias (jugadores/as) ----------
-  router.get('/familias', (req, res) => {
+  // ---------- Clientes (cada persona crea su cuenta con el correo) ----------
+  router.get('/clientes', (req, res) => {
     const q = `%${String(req.query.q || '').trim()}%`;
     const list = db.prepare(`SELECT u.*,
         (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id AND o.status != 'cancelado') AS orders,
         (SELECT COALESCE(SUM(total_cents), 0) FROM orders o WHERE o.user_id = u.id AND o.status = 'pendiente_pago') AS pending
-      FROM users u WHERE role = 'family' AND (player_name LIKE ? OR dni LIKE ? OR COALESCE(email, '') LIKE ? OR COALESCE(team, '') LIKE ?)
-      ORDER BY team, player_name`).all(q, q, q, q);
-    res.render('admin/families', { title: 'Familias', list, q: req.query.q || '' });
+      FROM users u WHERE role = 'family' AND (COALESCE(email, '') LIKE ? OR COALESCE(player_name, '') LIKE ?)
+      ORDER BY u.created_at DESC`).all(q, q);
+    res.render('admin/clients', { title: 'Clientes', list, q: req.query.q || '' });
   });
 
-  /**
-   * Activa la cuenta con el correo indicado: genera una contraseña y se la envía a la familia.
-   * Si ya tenía contraseña, la anterior deja de funcionar y se cierran sus sesiones.
-   */
-  /**
-   * Activa la cuenta y envía la contraseña por correo. Devuelve false si no hay servicio de correo:
-   * entonces solo se guarda el correo y la cuenta queda sin activar para que la familia haga el «Primer acceso»
-   * (así nunca queda una contraseña que no ha recibido nadie).
-   */
-  function sendAccess(req, userId, email) {
-    if (!mailer.enabled) {
-      db.prepare("UPDATE users SET email = ? WHERE id = ? AND role = 'family' AND activated_at IS NULL").run(email, userId);
-      return false;
-    }
+  const findClient = (id) => db.prepare("SELECT * FROM users WHERE id = ? AND role = 'family'").get(Number(id));
+
+  router.get('/clientes/:id', (req, res) => {
+    const client = findClient(req.params.id);
+    if (!client) return res.status(404).render('error', { title: 'No encontrado', message: 'Ese cliente no existe.' });
+    const list = db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY id DESC').all(client.id);
+    res.render('admin/client', { title: customerLabel(client), client, list });
+  });
+
+  // Contraseña nueva: se envía por correo; sin servicio de correo se muestra aquí para dársela a la persona.
+  router.post('/clientes/:id/nueva-contrasena', (req, res) => {
+    const client = findClient(req.params.id);
+    if (!client || !client.email) return res.redirect('/admin/clientes');
     const password = generatePassword();
     db.transaction(() => {
-      db.prepare(`UPDATE users SET email = ?, password_hash = ?,
-        activated_at = COALESCE(activated_at, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) WHERE id = ? AND role = 'family'`)
-        .run(email, bcrypt.hashSync(password, 10), userId);
-      db.prepare("DELETE FROM sessions WHERE json_extract(data, '$.userId') = ?").run(userId);
+      db.prepare("UPDATE users SET password_hash = ?, activated_at = COALESCE(activated_at, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) WHERE id = ?")
+        .run(bcrypt.hashSync(password, 10), client.id);
+      db.prepare("DELETE FROM sessions WHERE json_extract(data, '$.userId') = ?").run(client.id);
     })();
-    mailer.accountActivated(db.prepare('SELECT * FROM users WHERE id = ?').get(userId), password, req.appUrl);
-    return true;
-  }
-  const NO_MAIL = 'El envío de correos no está configurado: la familia tendrá que hacer el «Primer acceso» con el DNI (la contraseña le sale en pantalla).';
-
-  const readEmail = (value) => String(value || '').trim().toLowerCase();
-
-  function readFamily(body) {
-    const dni = normalizeDni(body.dni);
-    const value = {
-      dni,
-      player_name: String(body.player_name || '').trim().slice(0, 80),
-      player_number: String(body.player_number || '').trim().slice(0, 3) || null,
-      team: String(body.team || '').trim().slice(0, 40) || null,
-    };
-    if (!/^[A-Z0-9]{5,12}$/.test(dni)) return { error: { key: 'DNI no válido: «{dni}».', params: { dni: body.dni || '' } } };
-    if (!value.player_name) return { error: { key: 'Falta el nombre del jugador/a ({dni}).', params: { dni } } };
-    return { value, warning: isValidDni(dni) ? null : { key: 'Ojo: la letra del DNI {dni} no parece correcta.', params: { dni } } };
-  }
-
-  router.post('/familias', (req, res) => {
-    const { error, value, warning } = readFamily(req.body);
-    const email = readEmail(req.body.email);
-    if (error) flash(req, 'error', error.key, error.params);
-    else if (email && !isValidEmail(email)) flash(req, 'error', 'Correo no válido.');
-    else if (db.prepare('SELECT 1 FROM users WHERE dni = ?').get(value.dni)) flash(req, 'error', 'El DNI {dni} ya existe.', { dni: value.dni });
-    else {
-      const info = db.prepare(`INSERT INTO users (role, dni, player_name, player_number, team)
-        VALUES ('family', @dni, @player_name, @player_number, @team)`).run(value);
-      const sent = email ? sendAccess(req, info.lastInsertRowid, email) : false;
-      let msg = req.t(sent ? 'Jugador/a añadido/a. Se ha enviado la contraseña a {email}.' : 'Jugador/a añadido/a.', { email });
-      if (email && !sent) msg += ` ${req.t(NO_MAIL)}`;
-      flash(req, warning ? 'error' : 'ok', warning ? `${msg} ${req.t(warning.key, warning.params)}` : msg);
-    }
-    res.redirect('/admin/familias');
-  });
-
-  router.post('/familias/importar', (req, res) => {
-    const lines = String(req.body.csv || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    let added = 0;
-    let updated = 0;
-    const problems = [];
-    const invites = [];
-    const insert = db.prepare(`INSERT INTO users (role, dni, player_name, player_number, team)
-      VALUES ('family', @dni, @player_name, @player_number, @team)
-      ON CONFLICT(dni) DO UPDATE SET player_name = excluded.player_name,
-        player_number = excluded.player_number, team = excluded.team`);
-    db.transaction(() => {
-      for (const line of lines) {
-        const [dni, playerName, number, team, rawEmail] = line.split(/[;,\t]/).map((s) => s.trim());
-        if (/^dni$/i.test(dni)) continue; // cabecera
-        const { error, value, warning } = readFamily({ dni, player_name: playerName, player_number: number, team });
-        if (error) { problems.push(req.t(error.key, error.params)); continue; }
-        if (warning) problems.push(req.t(warning.key, warning.params));
-        const email = readEmail(rawEmail);
-        if (email && !isValidEmail(email)) problems.push(req.t('Correo no válido para {dni}: «{email}».', { dni: value.dni, email }));
-        const exists = db.prepare('SELECT activated_at FROM users WHERE dni = ?').get(value.dni);
-        insert.run(value);
-        if (exists) updated++; else added++;
-        // Solo se envía el acceso a cuentas sin activar: nunca se cambia la contraseña de quien ya entra.
-        if (email && isValidEmail(email) && !exists?.activated_at) invites.push([value.dni, email]);
-      }
-    })();
-    const sent = invites.filter(([dni, email]) => sendAccess(req, db.prepare('SELECT id FROM users WHERE dni = ?').get(dni).id, email)).length;
-    let msg = req.t('Importación: {added} nuevos, {updated} actualizados.', { added, updated });
-    if (sent) msg += ` ${req.t('Se ha enviado la contraseña por correo a {n} familia(s).', { n: sent })}`;
-    if (invites.length && !mailer.enabled) msg += ` ${req.t(NO_MAIL)}`;
-    flash(req, problems.length ? 'error' : 'ok', problems.length ? `${msg} ${req.t('Revisa:')} ${problems.join(' ')}` : msg);
-    res.redirect('/admin/familias');
-  });
-
-  router.get('/familias/:id', (req, res) => {
-    const family = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'family'").get(Number(req.params.id));
-    if (!family) return res.status(404).render('error', { title: 'No encontrado', message: 'Esa familia no existe.' });
-    const list = db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY id DESC').all(family.id);
-    res.render('admin/family', { title: family.player_name, family, list });
-  });
-
-  router.post('/familias/:id', (req, res) => {
-    const family = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'family'").get(Number(req.params.id));
-    if (!family) return res.redirect('/admin/familias');
-    const { error, value } = readFamily(req.body);
-    const email = String(req.body.email || '').trim().toLowerCase() || null;
-    if (error) flash(req, 'error', error.key, error.params);
-    else if (email && !isValidEmail(email)) flash(req, 'error', 'Correo no válido.');
-    else if (value.dni !== family.dni && db.prepare('SELECT 1 FROM users WHERE dni = ?').get(value.dni)) flash(req, 'error', 'Ese DNI ya existe.');
-    else {
-      db.prepare(`UPDATE users SET dni = @dni, player_name = @player_name, player_number = @player_number, team = @team,
-        email = @email WHERE id = @id`).run({ ...value, email, id: family.id });
-      flash(req, 'ok', 'Datos guardados.');
-    }
-    res.redirect(`/admin/familias/${family.id}`);
-  });
-
-  router.post('/familias/:id/enviar-acceso', (req, res) => {
-    const family = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'family'").get(Number(req.params.id));
-    if (!family) return res.redirect('/admin/familias');
-    const email = readEmail(req.body.email) || family.email;
-    if (!mailer.enabled) {
-      flash(req, 'error', 'El envío de correos no está configurado. Usa «Reiniciar acceso» para que la familia haga el «Primer acceso» con el DNI.');
-    } else if (!isValidEmail(email)) {
-      flash(req, 'error', 'Introduce un correo válido.');
+    if (mailer.enabled) {
+      mailer.newPassword(client, password);
+      flash(req, 'ok', 'Se ha enviado una contraseña nueva a {email}.', { email: client.email });
     } else {
-      sendAccess(req, family.id, email);
-      flash(req, 'ok', 'Se ha enviado una contraseña nueva a {email}.', { email });
+      flash(req, 'ok', 'Contraseña nueva: {password}. El envío de correos no está configurado: dásela tú a la persona.', { password });
     }
-    res.redirect(`/admin/familias/${family.id}`);
+    res.redirect(`/admin/clientes/${client.id}`);
   });
 
-  router.post('/familias/:id/reiniciar', (req, res) => {
-    db.transaction(() => {
-      db.prepare("UPDATE users SET password_hash = NULL, activated_at = NULL, email = NULL WHERE id = ? AND role = 'family'")
-        .run(Number(req.params.id));
-      db.prepare("DELETE FROM sessions WHERE json_extract(data, '$.userId') = ?").run(Number(req.params.id));
-    })();
-    flash(req, 'ok', 'Acceso reiniciado: la familia deberá volver a hacer el «Primer acceso».');
-    res.redirect(`/admin/familias/${req.params.id}`);
-  });
-
-  router.post('/familias/:id/eliminar', (req, res) => {
+  router.post('/clientes/:id/eliminar', (req, res) => {
     const id = Number(req.params.id);
     if (db.prepare('SELECT 1 FROM orders WHERE user_id = ?').get(id)) {
-      flash(req, 'error', 'No se puede eliminar: tiene pedidos. Puedes reiniciar su acceso.');
-      return res.redirect(`/admin/familias/${id}`);
+      flash(req, 'error', 'No se puede eliminar: tiene pedidos.');
+      return res.redirect(`/admin/clientes/${id}`);
     }
     db.prepare("DELETE FROM users WHERE id = ? AND role = 'family'").run(id);
     flash(req, 'ok', 'Eliminado/a.');
-    res.redirect('/admin/familias');
+    res.redirect('/admin/clientes');
   });
 
   // ---------- Administradores ----------

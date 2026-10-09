@@ -1,11 +1,11 @@
 <%- include('../partials/header') %>
 <section class="card narrow">
   <div class="page-head">
-    <span class="qr-kind <%= kind === 'pago' ? 'pay' : 'pickup' %>"><%= kind === 'pago' ? t('QR de pago') : t('QR de recogida') %></span>
+    <span class="qr-kind"><%= t('QR del pedido') %></span>
     <%- include('../partials/status', { status: order.status }) %>
   </div>
   <h1><%= t('Pedido {code}', { code: orderCode(order.id) }) %></h1>
-  <p class="big-name"><%= family.player_name %> <span class="muted"><%= family.dni %><%= family.team ? ' · ' + family.team : '' %></span></p>
+  <p class="big-name"><%= customerLabel(family) %></p>
   <ul class="items">
     <% items.forEach(it => { %>
       <li><strong><%= it.quantity %> ×</strong> <%- include('../partials/line-name', { it }) %>
@@ -15,31 +15,22 @@
   </ul>
   <p class="big-amount"><%= t('Total') %>: <strong><%= formatMoney(order.total_cents) %></strong></p>
 
-  <% if (kind === 'pago') { %>
-    <% if (order.status === 'pendiente_pago') { %>
-      <form method="post" action="/admin/qr/<%= token %>/cobrar" data-confirm="<%= t('¿Has recibido {amount} en mano?', { amount: formatMoney(order.total_cents) }) %>">
-        <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <button class="btn primary block big">💶 <%= t('Cobrado {amount}', { amount: formatMoney(order.total_cents) }) %></button>
-      </form>
-      <p class="hint center"><%= t('La familia recibirá al momento el comprobante y su QR de recogida.') %></p>
-    <% } else if (order.status === 'cancelado') { %>
-      <div class="flash error"><%= t('Este pedido está cancelado.') %></div>
-    <% } else { %>
-      <div class="flash ok"><%= t('Ya pagado el {date}.', { date: formatDate(order.paid_at) }) %></div>
-      <p class="small"><%= t('Este es el QR de pago. Para entregar el material hay que escanear el QR de recogida (lo recibió por correo al pagar y está en «Mis pedidos»).') %></p>
-    <% } %>
+  <% if (order.status === 'pendiente_pago') { %>
+    <form method="post" action="/admin/qr/<%= token %>/cobrar" data-confirm="<%= t('¿Has recibido {amount} en mano?', { amount: formatMoney(order.total_cents) }) %>">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <button class="btn primary block big">💶 <%= t('Cobrado {amount}', { amount: formatMoney(order.total_cents) }) %></button>
+    </form>
+    <p class="hint center"><%= t('Se le enviará el comprobante por correo. Para recoger el material enseñará este mismo QR.') %></p>
+  <% } else if (order.status === 'pendiente_entrega') { %>
+    <div class="flash ok"><%= t('Pagado el {date}. Comprueba el material y confirma la entrega.', { date: formatDate(order.paid_at) }) %></div>
+    <form method="post" action="/admin/qr/<%= token %>/entregar">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <button class="btn primary block big">✔ <%= t('Confirmar entrega') %></button>
+    </form>
+  <% } else if (order.status === 'entregado') { %>
+    <div class="flash ok"><%= t('Ya se entregó el {date}.', { date: formatDate(order.delivered_at) }) %></div>
   <% } else { %>
-    <% if (order.status === 'pendiente_entrega') { %>
-      <div class="flash ok"><%= t('Pagado el {date}. Comprueba el material con la familia y confirma.', { date: formatDate(order.paid_at) }) %></div>
-      <form method="post" action="/admin/qr/<%= token %>/entregar">
-        <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <button class="btn primary block big">✔ <%= t('Confirmar entrega') %></button>
-      </form>
-    <% } else if (order.status === 'entregado') { %>
-      <div class="flash ok"><%= t('Ya se entregó el {date}.', { date: formatDate(order.delivered_at) }) %></div>
-    <% } else { %>
-      <div class="flash error"><%= t('Este QR ya no es válido para entregar.') %></div>
-    <% } %>
+    <div class="flash error"><%= t('Este pedido está cancelado.') %></div>
   <% } %>
   <p class="center"><a class="btn" href="/admin/escanear?auto=1">📷 <%= t('Escanear otro') %></a> <a class="btn ghost" href="/admin/pedidos/<%= order.id %>"><%= t('Ver detalle') %></a></p>
 </section>

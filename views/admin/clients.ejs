@@ -1,0 +1,27 @@
+<%- include('../partials/header') %>
+<h1><%= t('Clientes') %></h1>
+<p class="muted"><%= t('Cada persona crea su cuenta con su correo desde la web para hacer pedidos. Aquí puedes consultarlas.') %></p>
+
+<form method="get" class="card row">
+  <input name="q" value="<%= q %>" class="grow" placeholder="<%= t('Buscar por correo') %>">
+  <button class="btn"><%= t('Buscar') %></button>
+</form>
+
+<p class="muted small"><%= t('{n} cuenta(s)', { n: list.length }) %></p>
+<div class="card table-wrap">
+  <table class="table stack">
+    <thead><tr><th><%= t('Correo') %></th><th><%= t('Alta') %></th><th><%= t('Pedidos') %></th><th class="num"><%= t('Debe') %></th></tr></thead>
+    <tbody>
+    <% list.forEach(c => { %>
+      <tr>
+        <td><a href="/admin/clientes/<%= c.id %>"><strong><%= customerLabel(c) %></strong></a></td>
+        <td class="small" data-label="<%= t('Alta') %>"><%= formatDate(c.created_at, false) %></td>
+        <td data-label="<%= t('Pedidos') %>"><%= c.orders %></td>
+        <td class="num" data-label="<%= t('Debe') %>"><%= c.pending ? formatMoney(c.pending) : '—' %></td>
+      </tr>
+    <% }) %>
+    <% if (!list.length) { %><tr><td colspan="4" class="center muted"><%= t('No hay resultados.') %></td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/footer') %>

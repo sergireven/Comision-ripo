@@ -114,6 +114,13 @@ function escapeHtml(text) {
   return String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
 
+/** Cómo se muestra un cliente: su correo (y el nombre si lo tiene, de cuentas antiguas). */
+function customerLabel(u) {
+  if (!u) return '';
+  const id = u.email || u.dni || u.username || '';
+  return u.player_name && u.role !== 'admin' ? `${u.player_name} · ${id}` : id;
+}
+
 /** Texto plano -> párrafos HTML escapados (línea en blanco = párrafo nuevo). */
 function paragraphs(text) {
   return String(text || '').trim().split(/\r?\n\s*\r?\n/).filter((p) => p.trim())
@@ -131,5 +138,5 @@ function instagramUrl(value) {
 module.exports = {
   TZ, randomString, generatePassword, generateToken, sha256, normalizeDni, isValidDni,
   isValidEmail, formatMoney, parseMoney, formatDate, toLocalInput, fromLocalInput, slugify,
-  STATUS, orderCode, parseSizes, escapeHtml, paragraphs, instagramUrl,
+  STATUS, orderCode, parseSizes, escapeHtml, paragraphs, instagramUrl, customerLabel,
 };

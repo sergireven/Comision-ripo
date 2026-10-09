@@ -5,10 +5,7 @@
     <h2><%= t('Datos') %></h2>
     <dl class="kv">
       <% if (user.role === 'family') { %>
-        <dt><%= t('Jugador/a') %></dt><dd><%= user.player_name %></dd>
-        <dt><%= t('DNI (usuario)') %></dt><dd><%= user.dni %></dd>
-        <% if (user.player_number) { %><dt><%= t('Dorsal') %></dt><dd><%= user.player_number %></dd><% } %>
-        <% if (user.team) { %><dt><%= t('Equipo') %></dt><dd><%= user.team %></dd><% } %>
+        <dt><%= t('Usuario') %></dt><dd><%= user.email %></dd>
       <% } else { %>
         <dt><%= t('Usuario') %></dt><dd><%= user.username %></dd>
       <% } %>
@@ -16,7 +13,7 @@
     </dl>
     <form method="post" action="/cuenta/email" class="form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
-      <label><%= t('Correo de contacto') %>
+      <label><%= user.role === 'family' ? t('Correo (es también tu usuario)') : t('Correo de contacto') %>
         <input type="email" name="email" value="<%= user.email || '' %>" required>
       </label>
       <button class="btn"><%= t('Guardar correo') %></button>

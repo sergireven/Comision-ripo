@@ -15,7 +15,7 @@
     <noscript><button class="btn"><%= t('Ver') %></button></noscript>
   </form>
 </div>
-<% if (!user) { %><p class="muted page-intro"><%= t('Las familias del club pueden hacer pedidos entrando con el DNI del jugador/a.') %> <a href="/login"><%= t('Entrar') %></a></p><% } %>
+<% if (!user) { %><p class="muted page-intro"><%= t('Para hacer un pedido necesitas una cuenta: solo hace falta tu correo.') %> <a href="/registro"><%= t('Crear cuenta') %></a> · <a href="/login"><%= t('Entrar') %></a></p><% } %>
 
 <% if (packs.length) { %>
 <section class="shop-section">

@@ -7,10 +7,10 @@
 
 <% if (order.status === 'pendiente_pago') { %>
   <div class="card qr-card center pay">
-    <span class="qr-kind"><%= t('QR de pago') %></span>
+    <span class="qr-kind"><%= t('QR del pedido') %></span>
     <p><%= t('Importe a pagar en mano a la comisión') %>: <strong class="big-amount"><%= formatMoney(order.total_cents) %></strong></p>
-    <img src="<%= qr %>" alt="<%= t('QR de pago') %>" width="240" height="240">
-    <p class="small"><%= t('Cuando pagues, enseña este QR: la comisión lo escaneará y recibirás al momento el comprobante y el QR de recogida.') %></p>
+    <img src="<%= qr %>" alt="<%= t('QR del pedido') %>" width="240" height="240">
+    <p class="small"><%= t('Enseña este QR cuando pagues y también cuando recojas el material. Lo tienes aquí y en el correo del pedido.') %></p>
   </div>
   <form method="post" action="/pedidos/<%= order.id %>/cancelar" data-confirm="<%= t('¿Seguro que quieres cancelar este pedido?') %>" class="center">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
@@ -18,15 +18,13 @@
   </form>
 <% } else if (order.status === 'pendiente_entrega') { %>
   <div class="card qr-card center pickup">
-    <span class="qr-kind"><%= t('QR de recogida') %></span>
+    <span class="qr-kind"><%= t('QR del pedido') %></span>
     <% if (order.ready_at) { %>
       <div class="flash ok"><strong><%= t('¡Listo para recoger!') %></strong> <%= t('Enseña este QR a la comisión cuando vengas a buscarlo.') %></div>
     <% } else { %>
-      <p><strong><%= t('Pagado ✔') %></strong> <%= t('Te avisaremos por correo cuando el material haya llegado.') %></p>
+      <p><strong><%= t('Pagado ✔') %></strong> <%= t('Te avisaremos por correo cuando el material haya llegado. Para recogerlo, enseña este mismo QR.') %></p>
     <% } %>
-    <img src="<%= qr %>" alt="<%= t('QR de recogida') %>" width="280" height="280">
-    <p><%= t('Código de recogida') %>: <span class="code"><%= order.pickup_code %></span></p>
-    <p class="muted small"><%= t('No lo compartas: quien tenga este QR puede recoger el pedido.') %></p>
+    <img src="<%= qr %>" alt="<%= t('QR del pedido') %>" width="280" height="280">
   </div>
 <% } else if (order.status === 'entregado') { %>
   <div class="card ok-card"><%= t('Entregado el {date}. ¡Gracias!', { date: formatDate(order.delivered_at) }) %></div>

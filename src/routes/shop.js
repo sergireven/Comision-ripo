@@ -95,7 +95,7 @@ module.exports = function shopRoutes({ db, mailer, orders }) {
       return res.redirect('/carrito');
     }
     mailer.orderPlaced(req.user, result.order, orders.orderItems(result.order.id), req.appUrl);
-    flash(req, 'ok', 'Pedido realizado. Te hemos enviado un correo con el QR de pago. Enséñalo a la comisión cuando pagues.');
+    flash(req, 'ok', 'Pedido realizado. Enseña el QR de este pedido cuando pagues y cuando recojas el material (también te lo hemos enviado por correo).');
     res.redirect(`/pedidos/${result.order.id}`);
   });
 
@@ -119,8 +119,8 @@ module.exports = function shopRoutes({ db, mailer, orders }) {
     try {
       const order = ownOrder(req, res);
       if (!order) return;
-      // pendiente de pago -> QR de pago · pagado -> QR de recogida
-      const token = { pendiente_pago: order.pay_token, pendiente_entrega: order.pickup_token }[order.status];
+      // Un único QR: sirve para cobrar y, una vez pagado, para entregar.
+      const token = ['pendiente_pago', 'pendiente_entrega'].includes(order.status) ? order.pay_token : null;
       const qr = token ? await QRCode.toDataURL(`${req.appUrl}/admin/qr/${token}`, { margin: 1, width: 280 }) : null;
       res.render('shop/order', {
         title: 'Pedido', order, items: orders.orderItems(order.id), events: orders.orderEvents(order.id), qr,

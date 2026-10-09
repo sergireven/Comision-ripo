@@ -2,7 +2,7 @@
 <section class="auth">
   <div class="card narrow center">
     <h1><%= t('Generar contraseña nueva') %></h1>
-    <p><%= t('Cuenta') %>: <strong><%= account.player_name || account.username %></strong> (<%= account.dni || account.username %>)</p>
+    <p><%= t('Cuenta') %>: <strong><%= account.email || account.username %></strong></p>
     <form method="post" action="/recuperar/<%= token %>">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <button class="btn primary"><%= t('Generar contraseña nueva') %></button>

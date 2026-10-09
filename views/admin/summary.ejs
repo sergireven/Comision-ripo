@@ -31,10 +31,10 @@
 <h2><%= t('Personalizaciones (nombre jugador + dorsal)') %></h2>
 <div class="card table-wrap">
   <table class="table">
-    <thead><tr><th><%= t('Producto') %></th><th><%= t('Talla') %></th><th><%= t('Nombre jugador') %></th><th><%= t('Dorsal') %></th><th><%= t('Cant.') %></th><th><%= t('Pedido') %></th><th><%= t('Jugador/a') %></th></tr></thead>
+    <thead><tr><th><%= t('Producto') %></th><th><%= t('Talla') %></th><th><%= t('Nombre jugador') %></th><th><%= t('Dorsal') %></th><th><%= t('Cant.') %></th><th><%= t('Pedido') %></th><th><%= t('Cliente') %></th></tr></thead>
     <tbody>
       <% custom.forEach(c => { %><tr><td><%= loc(c, 'product_name') %><% if (c.color || c.option_value) { %> <span class="muted small">(<%= [c.color, c.option_value].filter(Boolean).join(' · ') %>)</span><% } %></td><td><%= c.size || '—' %></td><td><strong><%= c.custom_name %></strong></td><td><strong><%= c.custom_number %></strong></td><td><%= c.quantity %></td>
-        <td><a href="/admin/pedidos/<%= c.order_id %>"><%= orderCode(c.order_id) %></a></td><td><%= c.player_name %></td></tr><% }) %>
+        <td><a href="/admin/pedidos/<%= c.order_id %>"><%= orderCode(c.order_id) %></a></td><td><%= customerLabel(c) %></td></tr><% }) %>
     </tbody>
   </table>
 </div>

@@ -1,62 +1,63 @@
 # Botiga · Club Hoquei Ripollet
 
-Web en **català i castellano** (selector CA/ES arriba a la derecha; los correos llegan en el idioma de cada familia).
+Web en **català i castellano** (selector CA/ES arriba a la derecha; los correos llegan en el idioma de cada persona).
 
-Web para gestionar los pedidos de marxandatge del club (camisetas, sudaderas, bufandas, botelleros…).
-El pago se hace en mano a la comisión. La web controla qué ha pedido cada familia, cuánto debe y en qué estado está cada pedido, y envía correos de confirmación en cada paso.
+Web de la comisión de eventos del club con la tienda de marxandatge (camisetas, sudaderas, bufandas, botellas…).
+El pago se hace en mano a la comisión. La web controla qué ha pedido cada persona, cuánto debe y en qué estado está cada pedido, y envía correos de confirmación en cada paso.
 
 ## Qué hace
 
-**Familias** (usuario = DNI del jugador/a)
-- **Primer acceso** (solo para cuentas que la comisión ya ha dado de alta sin correo): la familia introduce el DNI → indica el correo de contacto → la web genera una contraseña única (tipo `RIPO-K7QM-3XTA`), la muestra en pantalla y la envía por correo.
-- **Recuperar acceso**: se envía un enlace (válido 1 h y de un solo uso) al correo de la cuenta para generar una contraseña nueva.
-- **Tienda** con desplegable por tipo de producto, foto, precio, cantidad y talla. Los productos marcados como «nombre + dorsal» (p. ej. el botellero) piden ambos datos (se rellenan solos con los del jugador/a).
+**Clientes** (cualquiera puede comprar: usuario = su correo)
+- **Crear cuenta** solo con el correo: la web genera una contraseña (tipo `RIPO-K7QM-3XTA`), la muestra en pantalla y la envía por correo. Un correo = una cuenta.
+- **Recuperar acceso**: se envía un enlace (válido 1 h y de un solo uso) al correo para generar una contraseña nueva.
+- **Tienda** con desplegable por tipo de producto, packs, foto, precio, color/modelo, talla y cantidad. Los productos marcados como «nombre jugador + dorsal» piden ambos datos.
 - **Carrito** → revisar → «Realizar pedido». El pedido queda **pendiente de pago** y se puede cancelar mientras no esté pagado.
-- **Mis pedidos**: todos los pedidos con su estado, el importe pendiente y el historial.
-- Al hacer el pedido recibe por correo el **QR de pago**. Al pagar, recibe el **comprobante** y el **QR de recogida** (también visibles en «Mis pedidos»).
+- **Mis pedidos**: todos los pedidos con su estado, el importe pendiente, el historial y el **QR del pedido**.
+- Al hacer el pedido recibe por correo el **QR del pedido**, que sirve para pagar y para recoger. Al pagar recibe el **comprobante** (sin QR).
 - Barra superior con el periodo de pedidos y la **cuenta atrás hasta el cierre**.
 
 **Comisión (admin)**
-- **Panel**: pedidos por estado, dinero cobrado y pendiente de cobrar, familias activadas.
-- **Pedidos**: filtros por estado, periodo y búsqueda (nombre, DNI, correo, nº de pedido); botón rápido «Marcar pagado»; exportación a Excel (CSV); historial de cada pedido con quién hizo cada cambio.
+- **Panel**: pedidos por estado, dinero cobrado y pendiente de cobrar, clientes registrados.
+- **Pedidos**: filtros por estado, periodo y búsqueda (correo o nº de pedido); botones rápidos «Marcar pagado» y «Marcar entregado»; exportación a Excel (CSV); historial de cada pedido con quién hizo cada cambio.
 - **Escanear**: lector de QR dentro de la propia web (cámara del móvil) o con la cámara normal del móvil. Ver «Pago y entrega con QR».
 - **Caja por persona**: cuánto ha cobrado cada miembro de la comisión, para cuadrar el dinero en mano.
-- **Aviso «listo para recoger»**: cuando llega el material, un botón envía a todas las familias pagadas un correo con su QR de recogida y un mensaje (día, hora y lugar).
-- **Resumen** para el proveedor: unidades por producto y talla, más el listado de personalizaciones (nombre y dorsal). Imprimible.
-- **Productos** (nombre y descripción en castellano y, opcionalmente, en catalán; foto, precio, categoría, tallas, «requiere nombre + dorsal», visible/oculto) y **categorías**.
+- **Aviso «listo para recoger»**: cuando llega el material, un botón envía a todos los pedidos pagados un correo con su QR y un mensaje (día, hora y lugar).
+- **Resumen** para el proveedor: unidades por producto, color/modelo y talla, más el listado de personalizaciones (nombre jugador y dorsal). Imprimible.
+- **Productos** (nombre y descripción en castellano y, opcionalmente, en catalán; foto, precio, categoría, colores, modelos, tallas, guía de tallas, «requiere nombre jugador + dorsal», visible/oculto), **categorías** y **packs**.
 - **Periodos de pedidos**: fechas de apertura y cierre (hora de Madrid). Fuera de un periodo no se puede añadir al carrito ni confirmar pedidos.
-- **Familias** (solo la comisión puede dar de alta usuarios): alta individual o importación pegando desde Excel (`DNI;Nombre;Dorsal;Equipo;Correo`). Si se indica el correo, la cuenta queda activada y la familia recibe su contraseña por correo; si no, la familia hace el «Primer acceso» con el DNI. Desde la ficha se puede enviar una contraseña nueva, editar los datos o reiniciar el acceso.
-- **Administradores** y **registro de correos** enviados (sin contraseñas).
+- **Clientes**: lista de cuentas (la comisión no crea usuarios: cada persona se da de alta). Desde la ficha se puede generar una contraseña nueva (se envía por correo; sin servicio de correo se muestra a la comisión) o eliminar una cuenta sin pedidos.
+- **Textos de la web**, **administradores** y **registro de correos** enviados (sin contraseñas).
 
 ### Pago y entrega con QR
 
+Cada pedido tiene **un único QR**:
+
 ```
-Familia hace el pedido ──▶ correo con QR DE PAGO
+Hace el pedido ──▶ correo con el QR DEL PEDIDO
         │
-Paga en mano ──▶ la comisión escanea el QR de pago ──▶ «Cobrado» (queda registrado quién cobra)
-        │                                               └──▶ correo: COMPROBANTE + QR DE RECOGIDA
-Llega el material ──▶ la comisión pulsa «Avisar: listo para recoger» ──▶ correo a todas las familias pagadas
+Paga en mano ──▶ la comisión escanea el QR ──▶ «Cobrado» (queda registrado quién cobra) ──▶ correo: COMPROBANTE
         │
-Recoge ──▶ la comisión escanea el QR de recogida ──▶ «Confirmar entrega» ──▶ correo de entregado
+Llega el material ──▶ «Avisar: listo para recoger» ──▶ correo (con el mismo QR) a todos los pedidos pagados
+        │
+Recoge ──▶ la comisión escanea el MISMO QR ──▶ «Confirmar entrega» ──▶ correo de entregado
 ```
 
-- Cada QR solo sirve para su paso: con el QR de pago no se puede entregar y el de recogida no existe hasta que se paga.
-- El QR solo funciona con la sesión de la comisión iniciada: si una familia lo abre, no puede cambiar nada.
-- Si se deshace un cobro, el QR de recogida anterior deja de valer.
-- Plan B sin móvil: cobrar buscando el pedido por nombre; entregar tecleando el código de recogida de 6 caracteres; o, en último caso, marcar como entregado indicando el motivo (queda registrado).
+- Al escanear, la web ofrece lo que toca según el estado: cobrar si está pendiente de pago, entregar si ya está pagado.
+- El QR solo funciona con la sesión de la comisión iniciada: si un cliente lo abre, no puede cambiar nada.
+- Sin QR: buscar el pedido por correo o número en «Pedidos» y usar «Marcar pagado» o «Marcar entregado» (queda registrado).
 - El lector de QR dentro de la web necesita HTTPS (cualquier hosting lo da).
 
 ### Estados de un pedido
 
 ```
-pendiente de pago ──(la comisión cobra)──▶ pagado · pendiente de entrega ──(QR / código)──▶ entregado
+pendiente de pago ──(la comisión cobra)──▶ pagado · pendiente de entrega ──(QR o a mano)──▶ entregado
         │
-        └──(la familia o la comisión cancela)──▶ cancelado
+        └──(el cliente o la comisión cancela)──▶ cancelado
 ```
-Si la comisión se equivoca, puede deshacer un paso. Cada cambio queda en el historial y se avisa por correo a la familia.
+Si la comisión se equivoca, puede deshacer un paso. Cada cambio queda en el historial y se avisa por correo.
 
 ### Correos automáticos
-Activación de cuenta, recuperación de contraseña, pedido recibido, pago registrado (con el enlace al QR), pedido entregado y pedido cancelado.
+Cuenta creada, recuperación de contraseña, pedido recibido (con el QR), pago registrado (comprobante), aviso de recogida (con el QR), pedido entregado y pedido cancelado.
 Si se define `ADMIN_NOTIFY_EMAIL`, la comisión recibe un aviso de cada pedido nuevo o cancelado.
 
 ### Colores, opciones y packs
@@ -86,9 +87,9 @@ npm start                   # http://localhost:3000
 
 **Primer administrador**: define `ADMIN_USER` y `ADMIN_PASSWORD` (mín. 10 caracteres) en el `.env` o en las variables del hosting y se crea solo al arrancar. También se puede crear con `npm run create-admin -- usuario "contraseña" correo`. El resto de la comisión se da de alta desde *Administradores*.
 
-Para probarlo con datos de ejemplo: `npm run seed-demo` (admin `comision` / `comision-demo` y DNIs `12345678Z`, `87654321X`, `X1234567L`).
+Para probarlo con datos de ejemplo: `npm run seed-demo` (admin `comision` / `comision-demo` y cliente `familia@example.com` / `familia-demo`).
 
-Primeros pasos en la web: **Familias** → importar el listado de jugadores · **Productos** → crear los artículos con foto · **Periodos** → abrir un periodo de pedidos.
+Primeros pasos en la web: **Productos** → crear los artículos con foto (o cargar el catálogo desde Excel) · **Periodos** → abrir un periodo de pedidos. Los clientes se dan de alta solos con su correo.
 
 ### Correo
 Sin servicio de correo los correos no se envían (solo se registran en *Admin › Correos*); en ese caso, al dar de alta familias con correo la cuenta queda para el «Primer acceso» (la contraseña sale en pantalla) en lugar de enviarse.
@@ -108,10 +109,10 @@ npm test      # pruebas del flujo completo
 ```
 
 Estructura: `src/` (servidor Express, rutas, base de datos, correos), `views/` (plantillas EJS), `public/` (CSS, JS, logo).
-Las votaciones de diseños se podrán añadir como una sección nueva reutilizando las cuentas de familias existentes.
+Las votaciones de diseños se podrán añadir como una sección nueva reutilizando las cuentas de clientes existentes.
 
 ## Seguridad
 - Contraseñas guardadas con bcrypt; los enlaces de recuperación se guardan como hash y caducan.
-- Protección CSRF en todos los formularios, cookies `httpOnly` y límite de intentos en el login, el primer acceso y la recuperación.
-- Solo se pueden activar los DNI que la comisión ha dado de alta.
-- **Limitación conocida**: quien conozca el DNI de un jugador/a cuya cuenta aún no se haya activado podría activarla antes que la familia. Si pasa, la comisión puede usar «Reiniciar acceso» desde la ficha de la familia. Si se quiere más seguridad, se puede añadir un código de activación que reparta la comisión.
+- Protección CSRF en todos los formularios, cookies `httpOnly` y límite de intentos en el login, el alta y la recuperación.
+- Un correo = una cuenta. Las contraseñas generadas se muestran una vez en pantalla y se envían por correo; nunca se guardan en claro ni en el registro de correos.
+- **A tener en cuenta**: como la contraseña sale en pantalla al darse de alta, alguien podría crear una cuenta con un correo que no es suyo. No da acceso a nada de otra persona; si pasa, la comisión puede eliminar la cuenta (si no tiene pedidos).

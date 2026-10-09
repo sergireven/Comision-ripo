@@ -1,4 +1,4 @@
-const { generateToken, randomString, parseSizes } = require('./util');
+const { generateToken, parseSizes } = require('./util');
 const { bestPacks } = require('./packs');
 
 /** Estado de la tienda según los periodos de pedidos definidos por la comisión. */
@@ -191,14 +191,15 @@ function createOrderService(db) {
     return db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
   }
 
-  /** Busca un pedido por cualquiera de sus QR. Devuelve { order, kind: 'pago' | 'recogida' } o null. */
+  /**
+   * Busca un pedido por su QR. Cada pedido tiene un único QR que sirve para cobrar y para entregar.
+   * (Los pedidos antiguos tenían además un QR de recogida: también se acepta.) Devuelve { order } o null.
+   */
   function findByToken(token) {
     const t = String(token || '');
     if (!/^[0-9a-f]{64}$/.test(t)) return null;
-    let order = db.prepare('SELECT * FROM orders WHERE pickup_token = ?').get(t);
-    if (order) return { order, kind: 'recogida' };
-    order = db.prepare('SELECT * FROM orders WHERE pay_token = ?').get(t);
-    return order ? { order, kind: 'pago' } : null;
+    const order = db.prepare('SELECT * FROM orders WHERE pay_token = ? OR pickup_token = ?').get(t, t);
+    return order ? { order } : null;
   }
 
   function orderItems(orderId) {
@@ -212,7 +213,6 @@ function createOrderService(db) {
 
   /**
    * Cambia el estado si la transición es válida. Devuelve { order } o { error }.
-   * Al cobrar se genera el QR/código de recogida; si se deshace el cobro, se invalidan.
    */
   const changeStatus = db.transaction((orderId, newStatus, actorId, note = null) => {
     const order = getOrder(orderId);
@@ -222,14 +222,12 @@ function createOrderService(db) {
     }
     const now = new Date().toISOString();
     if (newStatus === 'pendiente_entrega' && order.status === 'pendiente_pago') {
-      db.prepare(`UPDATE orders SET status = ?, paid_at = ?, paid_by = ?, pickup_token = ?, pickup_code = ?
-        WHERE id = ?`).run(newStatus, now, actorId, uniqueValue('pickup_token', generateToken),
-        uniqueValue('pickup_code', () => randomString(6)), orderId);
+      db.prepare('UPDATE orders SET status = ?, paid_at = ?, paid_by = ? WHERE id = ?').run(newStatus, now, actorId, orderId);
     } else if (newStatus === 'pendiente_entrega') { // deshacer entrega
       db.prepare('UPDATE orders SET status = ?, delivered_at = NULL, delivered_by = NULL WHERE id = ?').run(newStatus, orderId);
     } else if (newStatus === 'pendiente_pago') { // deshacer cobro o reactivar cancelado
-      db.prepare(`UPDATE orders SET status = ?, paid_at = NULL, paid_by = NULL, pickup_token = NULL, pickup_code = NULL,
-        ready_at = NULL, cancelled_at = NULL WHERE id = ?`).run(newStatus, orderId);
+      db.prepare(`UPDATE orders SET status = ?, paid_at = NULL, paid_by = NULL, ready_at = NULL, cancelled_at = NULL
+        WHERE id = ?`).run(newStatus, orderId);
     } else if (newStatus === 'entregado') {
       db.prepare('UPDATE orders SET status = ?, delivered_at = ?, delivered_by = ? WHERE id = ?').run(newStatus, now, actorId, orderId);
     } else if (newStatus === 'cancelado') {

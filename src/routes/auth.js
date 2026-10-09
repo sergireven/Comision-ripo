@@ -1,14 +1,18 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { flash, requireLogin, rateLimit } = require('../middleware');
-const { normalizeDni, isValidEmail, generatePassword, generateToken, sha256 } = require('../util');
+const { isValidEmail, generatePassword, generateToken, sha256 } = require('../util');
 
 const limiter = () => rateLimit({ max: process.env.NODE_ENV === 'test' ? 1000 : 10 });
+const readEmail = (value) => String(value || '').trim().toLowerCase();
 
 module.exports = function authRoutes({ db, mailer }) {
   const router = express.Router();
 
-  const findLogin = db.prepare('SELECT * FROM users WHERE dni = ? OR username = ?');
+  // Clientes: entran con su correo. Comisión: con su nombre de usuario.
+  const findLogin = db.prepare(`SELECT * FROM users
+    WHERE (role = 'family' AND email = @login) OR (role = 'admin' AND username = @login) ORDER BY role DESC LIMIT 1`);
+  const findCustomer = db.prepare("SELECT * FROM users WHERE role = 'family' AND email = ?");
   const homeOf = (user) => (user.role === 'admin' ? '/admin' : '/tienda');
 
   function logIn(req, user, cb) {
@@ -27,17 +31,9 @@ module.exports = function authRoutes({ db, mailer }) {
 
   router.post('/login', limiter(), (req, res, next) => {
     const raw = String(req.body.usuario || '').trim();
-    const user = findLogin.get(normalizeDni(raw), raw.toLowerCase());
+    const user = findLogin.get({ login: raw.toLowerCase() });
     const ok = user && user.password_hash && bcrypt.compareSync(String(req.body.password || ''), user.password_hash);
-    if (!ok) {
-      if (user && user.role === 'family' && !user.activated_at) {
-        return res.status(401).render('auth/login', {
-          title: 'Entrar', usuario: raw,
-          error: 'Esta cuenta todavía no está activada. Haz clic en «Primer acceso» para obtener tu contraseña.',
-        });
-      }
-      return res.status(401).render('auth/login', { title: 'Entrar', usuario: raw, error: 'Usuario o contraseña incorrectos.' });
-    }
+    if (!ok) return res.status(401).render('auth/login', { title: 'Entrar', usuario: raw, error: 'Correo o contraseña incorrectos.' });
     logIn(req, user, (err, to) => (err ? next(err) : res.redirect(to)));
   });
 
@@ -45,40 +41,34 @@ module.exports = function authRoutes({ db, mailer }) {
     req.session.destroy(() => res.redirect('/'));
   });
 
-  // --- Primer acceso: DNI -> email -> se genera la contraseña ---
-  router.get('/primer-acceso', (req, res) => res.render('auth/first-access', { title: 'Primer acceso', step: 1, dni: '' }));
+  // --- Crear cuenta: solo el correo; la contraseña se genera, se muestra en pantalla y se envía por correo ---
+  router.get('/registro', (req, res) => {
+    if (req.user) return res.redirect(homeOf(req.user));
+    res.render('auth/register', { title: 'Crear cuenta', email: '' });
+  });
+  router.get('/primer-acceso', (req, res) => res.redirect(301, '/registro'));
 
-  router.post('/primer-acceso', limiter(), (req, res, next) => {
-    const dni = normalizeDni(req.body.dni);
-    const user = db.prepare("SELECT * FROM users WHERE dni = ? AND role = 'family'").get(dni);
-    const render = (status, extra) => res.status(status).render('auth/first-access', { title: 'Primer acceso', dni, ...extra });
-
-    if (!user) {
-      return render(404, {
-        step: 1,
-        error: 'No encontramos ese DNI en el listado del club. Revisa que esté bien escrito o contacta con la comisión.',
-      });
-    }
-    if (user.activated_at) {
-      return render(409, { step: 1, error: 'Esta cuenta ya está activada. Si no recuerdas la contraseña usa «He olvidado mi contraseña».' });
-    }
-    if (req.body.step !== '2') return render(200, { step: 2, playerName: user.player_name });
-
-    const email = String(req.body.email || '').trim().toLowerCase();
-    const email2 = String(req.body.email2 || '').trim().toLowerCase();
-    if (!isValidEmail(email)) return render(400, { step: 2, playerName: user.player_name, email, error: 'Introduce un correo válido.' });
-    if (email !== email2) return render(400, { step: 2, playerName: user.player_name, email, error: 'Los dos correos no coinciden.' });
+  router.post('/registro', limiter(), (req, res, next) => {
+    const email = readEmail(req.body.email);
+    const render = (status, error) => res.status(status).render('auth/register', { title: 'Crear cuenta', email, error });
+    if (!isValidEmail(email)) return render(400, 'Introduce un correo válido.');
+    if (email !== readEmail(req.body.email2)) return render(400, 'Los dos correos no coinciden.');
+    if (findCustomer.get(email)) return render(409, 'Ya hay una cuenta con este correo. Entra con tu contraseña o usa «He olvidado mi contraseña».');
 
     const password = generatePassword();
-    const res2 = db.prepare(`UPDATE users SET email = ?, password_hash = ?, lang = ?, activated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-      WHERE id = ? AND activated_at IS NULL`).run(email, bcrypt.hashSync(password, 10), req.lang, user.id);
-    if (!res2.changes) return render(409, { step: 1, error: 'Esta cuenta ya está activada.' });
-
-    const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
-    mailer.accountActivated(updated, password, req.appUrl);
-    logIn(req, updated, (err) => {
+    let user;
+    try {
+      const info = db.prepare(`INSERT INTO users (role, email, password_hash, lang, activated_at)
+        VALUES ('family', ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`).run(email, bcrypt.hashSync(password, 10), req.lang);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+    } catch (err) {
+      if (/UNIQUE/.test(err.message)) return render(409, 'Ya hay una cuenta con este correo. Entra con tu contraseña o usa «He olvidado mi contraseña».');
+      return next(err);
+    }
+    mailer.accountActivated(user, password, req.appUrl);
+    logIn(req, user, (err) => {
       if (err) return next(err);
-      res.render('auth/first-access-done', { title: 'Cuenta activada', password, user: updated, email });
+      res.render('auth/first-access-done', { title: 'Cuenta creada', password, user, email, mailEnabled: mailer.enabled });
     });
   });
 
@@ -86,14 +76,7 @@ module.exports = function authRoutes({ db, mailer }) {
   router.get('/recuperar', (req, res) => res.render('auth/recover', { title: 'Recuperar acceso' }));
 
   router.post('/recuperar', limiter(), (req, res) => {
-    const raw = String(req.body.usuario || '').trim();
-    const user = findLogin.get(normalizeDni(raw), raw.toLowerCase());
-    if (user && user.role === 'family' && !user.activated_at) {
-      return res.render('auth/recover', {
-        title: 'Recuperar acceso',
-        error: 'Esta cuenta aún no se ha activado: usa «Primer acceso» para obtener la contraseña.',
-      });
-    }
+    const user = findLogin.get({ login: readEmail(req.body.usuario) });
     if (user && user.email) {
       const token = generateToken();
       db.prepare('UPDATE reset_tokens SET used_at = ? WHERE user_id = ? AND used_at IS NULL').run(new Date().toISOString(), user.id);
@@ -101,11 +84,11 @@ module.exports = function authRoutes({ db, mailer }) {
         .run(user.id, sha256(token), new Date(Date.now() + 3600 * 1000).toISOString());
       mailer.resetLink(user, `${req.appUrl}/recuperar/${token}`);
     }
-    // Mismo mensaje exista o no la cuenta, para no revelar qué DNIs están registrados.
+    // Mismo mensaje exista o no la cuenta, para no revelar qué correos están registrados.
     res.render('auth/recover', { title: 'Recuperar acceso', sent: true });
   });
 
-  const findToken = db.prepare(`SELECT t.*, u.dni, u.username, u.email, u.player_name FROM reset_tokens t
+  const findToken = db.prepare(`SELECT t.*, u.username, u.email FROM reset_tokens t
     JOIN users u ON u.id = t.user_id WHERE t.token_hash = ? AND t.used_at IS NULL AND t.expires_at > ?`);
 
   router.get('/recuperar/:token', (req, res) => {
@@ -127,7 +110,7 @@ module.exports = function authRoutes({ db, mailer }) {
     mailer.newPassword(user, password);
     logIn(req, user, (err) => {
       if (err) return next(err);
-      res.render('auth/first-access-done', { title: 'Contraseña nueva', password, user, email: user.email, reset: true });
+      res.render('auth/first-access-done', { title: 'Contraseña nueva', password, user, email: user.email, reset: true, mailEnabled: mailer.enabled });
     });
   });
 
@@ -150,13 +133,15 @@ module.exports = function authRoutes({ db, mailer }) {
   });
 
   router.post('/cuenta/email', requireLogin, (req, res) => {
-    const email = String(req.body.email || '').trim().toLowerCase();
+    const email = readEmail(req.body.email);
     if (!isValidEmail(email)) {
       flash(req, 'error', 'Introduce un correo válido.');
+    } else if (req.user.role === 'family' && email !== req.user.email && findCustomer.get(email)) {
+      flash(req, 'error', 'Ya hay una cuenta con este correo.');
     } else {
       db.prepare('UPDATE users SET email = ? WHERE id = ?').run(email, req.user.id);
       mailer.emailChanged(req.user, email);
-      flash(req, 'ok', 'Correo actualizado.');
+      flash(req, 'ok', req.user.role === 'family' ? 'Correo actualizado. A partir de ahora entra con el correo nuevo.' : 'Correo actualizado.');
     }
     res.redirect('/cuenta');
   });

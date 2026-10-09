@@ -199,6 +199,12 @@ function migrate(db) {
     const exists = db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
     if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
   }
+  // Los clientes entran con su correo: no puede haber dos cuentas con el mismo.
+  try {
+    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_customer_email ON users(email) WHERE role = 'family'");
+  } catch (err) {
+    console.error('Aviso: hay cuentas de cliente con el correo repetido; revísalas en Admin › Clientes.', err.message);
+  }
 }
 
 /**
