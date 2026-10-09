@@ -4,4 +4,5 @@
    if (it.option_value) bits.push(it.option_value);
    if (it.size) bits.push(t('Talla') + ' ' + it.size); %>
 <% if (bits.length) { %><%= bits.join(' · ') %><br><% } %>
+<% if (it.no_custom) { %><%= t('Sin personalizar') %><% } %>
 <% if (it.custom_name) { %>«<%= it.custom_name %>» · <%= t('dorsal') %> <%= it.custom_number %><% } %>

@@ -10,7 +10,7 @@
     <% items.forEach(it => { %>
       <li><strong><%= it.quantity %> ×</strong> <%- include('../partials/line-name', { it }) %>
         <%= it.color ? ' · ' + it.color : '' %><%= it.option_value ? ' · ' + it.option_value : '' %>
-        <%= it.size ? ' · ' + t('talla {size}', { size: it.size }) : '' %><%= it.custom_name ? ' · «' + it.custom_name + '» #' + it.custom_number : '' %></li>
+        <%= it.size ? ' · ' + t('talla {size}', { size: it.size }) : '' %><%= it.custom_name ? ' · «' + it.custom_name + '» #' + it.custom_number : '' %><%= it.no_custom ? ' · ' + t('Sin personalizar') : '' %></li>
     <% }) %>
   </ul>
   <p class="big-amount"><%= t('Total') %>: <strong><%= formatMoney(order.total_cents) %></strong></p>

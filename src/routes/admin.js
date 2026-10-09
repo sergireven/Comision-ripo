@@ -90,7 +90,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
   router.get('/pedidos.csv', (req, res) => {
     const { sql, params } = orderFilters(req.query);
     const rows = db.prepare(`SELECT o.id, o.status, o.created_at, o.paid_at, o.delivered_at,
-        u.email, i.kind, i.product_name, i.color, i.option_value, i.size, i.custom_name, i.custom_number, i.quantity, i.unit_price_cents,
+        u.email, i.kind, i.product_name, i.color, i.option_value, i.size, i.custom_name, i.custom_number, i.no_custom, i.quantity, i.unit_price_cents,
         c.username AS collector
       FROM orders o JOIN users u ON u.id = o.user_id JOIN order_items i ON i.order_id = o.id
       LEFT JOIN users c ON c.id = o.paid_by
@@ -103,7 +103,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     const kindLabel = { product: 'Artículo', pack: 'Descuento', gift: 'Regalo' };
     const lines = rows.map((r) => [orderCode(r.id), t(STATUS[r.status].label), fd(r.created_at), fd(r.paid_at), r.collector,
       fd(r.delivered_at), r.email, t(kindLabel[r.kind] || 'Artículo'), r.product_name, r.color, r.option_value,
-      r.size, r.custom_name, r.custom_number,
+      r.size, r.custom_name || (r.no_custom ? t('Sin personalizar') : ''), r.custom_number,
       r.quantity, (r.unit_price_cents / 100).toFixed(2).replace('.', ','),
       ((r.unit_price_cents * r.quantity) / 100).toFixed(2).replace('.', ',')].map(esc).join(';'));
     res.set('Content-Type', 'text/csv; charset=utf-8');
@@ -258,7 +258,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       description_ca: String(b.description_ca || '').trim().slice(0, 1000) || null,
       category_id: Number(b.category_id) || null,
       price_cents: parseMoney(b.price),
-      personalization: b.personalization ? 1 : 0,
+      personalization: [0, 1, 2].includes(Number(b.personalization)) ? Number(b.personalization) : 0,
       sizes: String(b.sizes || '').split(',').map((s) => s.trim()).filter(Boolean).join(', ') || null,
       colors: String(b.colors || '').split(',').map((s) => s.trim()).filter(Boolean).join(', ') || null,
       options: String(b.options || '').split(',').map((s) => s.trim()).filter(Boolean).join(', ') || null,

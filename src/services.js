@@ -93,25 +93,31 @@ function createOrderService(db) {
     if (option.error) return option;
     let customName = null;
     let customNumber = null;
+    // Personalización opcional: hay que elegir expresamente «Sin personalizar» para no dejarlo vacío por error.
+    if (product.personalization === 2 && input.no_custom === '1') {
+      return { value: { quantity, size, customName, customNumber, color: color.value, option: option.value, noCustom: 1 } };
+    }
     if (product.personalization) {
       customName = String(input.custom_name || '').trim().slice(0, 30);
       customNumber = String(input.custom_number || '').trim();
-      if (!customName) return { error: 'Indica el nombre a personalizar.' };
+      if (!customName) {
+        return { error: product.personalization === 2 ? 'Indica el nombre a personalizar o elige «Sin personalizar».' : 'Indica el nombre a personalizar.' };
+      }
       if (!/^\d{1,3}$/.test(customNumber)) return { error: 'Indica un dorsal válido (1-3 cifras).' };
     }
-    return { value: { quantity, size, customName, customNumber, color: color.value, option: option.value } };
+    return { value: { quantity, size, customName, customNumber, color: color.value, option: option.value, noCustom: 0 } };
   }
 
-  function insertLine(userId, productId, { quantity, size, customName, customNumber, color, option }) {
+  function insertLine(userId, productId, { quantity, size, customName, customNumber, color, option, noCustom }) {
     const existing = db.prepare(`
       SELECT id, quantity FROM cart_items WHERE user_id = ? AND product_id = ?
-        AND size IS ? AND custom_name IS ? AND custom_number IS ? AND color IS ? AND option_value IS ?`)
-      .get(userId, productId, size, customName, customNumber, color, option);
+        AND size IS ? AND custom_name IS ? AND custom_number IS ? AND color IS ? AND option_value IS ? AND no_custom = ?`)
+      .get(userId, productId, size, customName, customNumber, color, option, noCustom);
     if (existing) {
       db.prepare('UPDATE cart_items SET quantity = MIN(50, quantity + ?) WHERE id = ?').run(quantity, existing.id);
     } else {
-      db.prepare(`INSERT INTO cart_items (user_id, product_id, quantity, size, custom_name, custom_number, color, option_value)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(userId, productId, quantity, size, customName, customNumber, color, option);
+      db.prepare(`INSERT INTO cart_items (user_id, product_id, quantity, size, custom_name, custom_number, color, option_value, no_custom)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(userId, productId, quantity, size, customName, customNumber, color, option, noCustom);
     }
   }
 
@@ -134,7 +140,7 @@ function createOrderService(db) {
       const field = (name) => input[`${name}_${item.product_id}`];
       const res = validateLine({ ...item, id: item.product_id }, {
         quantity: input.quantity || 1, size: field('size'), color: field('color'), option_value: field('option_value'),
-        custom_name: field('custom_name'), custom_number: field('custom_number'),
+        custom_name: field('custom_name'), custom_number: field('custom_number'), no_custom: field('no_custom'),
       });
       if (res.error) return { ...res, product: item };
       lines.push([item.product_id, res.value]);
@@ -163,11 +169,11 @@ function createOrderService(db) {
     const orderId = info.lastInsertRowid;
     const insertItem = db.prepare(`INSERT INTO order_items
       (order_id, product_id, product_name, product_name_ca, unit_price_cents, quantity, size, custom_name, custom_number,
-        color, option_value, kind)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+        color, option_value, kind, no_custom)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     for (const it of items) {
       insertItem.run(orderId, it.product_id, it.product_name, it.product_name_ca, it.price_cents, it.quantity,
-        it.size, it.custom_name, it.custom_number, it.color, it.option_value, 'product');
+        it.size, it.custom_name, it.custom_number, it.color, it.option_value, 'product', it.no_custom ? 1 : 0);
     }
     // Packs aplicados: una línea de descuento (importe negativo) y los regalos a 0 €, agrupados por pack.
     const byPack = new Map();
@@ -177,9 +183,9 @@ function createOrderService(db) {
       byPack.set(a.pack.id, entry);
     }
     for (const { pack, saving, gifts, count } of byPack.values()) {
-      insertItem.run(orderId, null, pack.name, pack.name_ca, -saving, count, null, null, null, null, null, 'pack');
+      insertItem.run(orderId, null, pack.name, pack.name_ca, -saving, count, null, null, null, null, null, 'pack', 0);
       for (const g of gifts) {
-        insertItem.run(orderId, g.product_id, g.name, g.name_ca, 0, count, null, null, null, null, null, 'gift');
+        insertItem.run(orderId, g.product_id, g.name, g.name_ca, 0, count, null, null, null, null, null, 'gift', 0);
       }
     }
     db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId);

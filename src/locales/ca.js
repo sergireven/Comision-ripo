@@ -641,4 +641,14 @@ module.exports = {
   "Correo o contraseña incorrectos.": "Correu o contrasenya incorrectes.",
   "Correo actualizado. A partir de ahora entra con el correo nuevo.": "Correu actualitzat. A partir d'ara entra amb el correu nou.",
   "Pedido realizado. Enseña el QR de este pedido cuando pagues y cuando recojas el material (también te lo hemos enviado por correo).": "Comanda feta. Ensenya el QR d'aquesta comanda quan paguis i quan recullis el material (també te l'hem enviat per correu).",
+
+  // --- Personalización opcional ---
+  "Sin personalizar": "Sense personalitzar",
+  "sin personalizar": "sense personalitzar",
+  "No se personaliza": "No es personalitza",
+  "Obligatorio": "Obligatori",
+  "Opcional (la familia puede elegir «Sin personalizar»)": "Opcional (la família pot triar «Sense personalitzar»)",
+  "Personalización": "Personalització",
+  "Personalizar con nombre jugador y dorsal": "Personalitzar amb nom jugador i dorsal",
+  "Indica el nombre a personalizar o elige «Sin personalizar».": "Indica el nom a personalitzar o tria «Sense personalitzar».",
 };

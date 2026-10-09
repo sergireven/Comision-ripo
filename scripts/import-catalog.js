@@ -62,7 +62,8 @@ db.transaction(() => {
     const row = {
       name: a.name, name_ca: a.name_ca || null, description: a.description || null, description_ca: a.description_ca || null,
       category_id: categoryId(a.category), price_cents: cents(a.price),
-      personalization: a.personalization ? 1 : 0, sizes: csv(a.sizes), colors: csv(a.colors), options: csv(a.options),
+      // «… (opcional)» en el Excel = se puede elegir «Sin personalizar».
+      personalization: !a.personalization ? 0 : /opcional|sin personalizar/i.test(a.personalization) ? 2 : 1, sizes: csv(a.sizes), colors: csv(a.colors), options: csv(a.options),
       active: visible(a.visible),
       image: copyImage(a.image, existing?.image), size_guide: copyImage(a.size_guide, existing?.size_guide),
     };

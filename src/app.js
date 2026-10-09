@@ -10,6 +10,9 @@ const util = require('./util');
 const { getSettings } = require('./settings');
 const { LANGS, translate, detectLang, localized } = require('./i18n');
 
+// Cambia en cada arranque: tras publicar, los navegadores cargan el CSS y el JS nuevos aunque tengan los viejos guardados.
+const ASSET_VERSION = Date.now().toString(36);
+
 function setLocale(req, res, lang) {
   req.lang = lang;
   req.t = (key, params) => translate(lang, key, params);
@@ -44,7 +47,7 @@ function createApp(db, options = {}) {
     // Valores por defecto para poder pintar páginas de error aunque falle algo antes de cargar la sesión.
     Object.assign(res.locals, util, {
       user: null, csrf: '', path: req.path, flash: null, cartCount: 0, shop: { open: false }, site: {},
-      clubName: process.env.CLUB_NAME || 'Club Hoquei Ripollet',
+      clubName: process.env.CLUB_NAME || 'Club Hoquei Ripollet', assetVersion: ASSET_VERSION,
     });
     setLocale(req, res, detectLang(req));
     next();

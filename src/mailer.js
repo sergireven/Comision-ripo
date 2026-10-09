@@ -111,6 +111,7 @@ function createMailer(db, { fetchImpl } = {}) {
         it.size && t('talla {size}', { size: it.size }),
         it.custom_name && t('nombre jugador «{name}»', { name: it.custom_name }),
         it.custom_number && t('dorsal {number}', { number: it.custom_number }),
+        it.no_custom && t('sin personalizar'),
       ].filter(Boolean).join(', ');
       return `  · ${it.quantity} x ${name}${extras ? ` (${extras})` : ''} — ${formatMoney(it.unit_price_cents * it.quantity)}`;
     }).join('\n');
@@ -177,7 +178,7 @@ function createMailer(db, { fetchImpl } = {}) {
       }
     },
 
-    /** Cambio de estado. Al cobrar se envía el comprobante con el QR de RECOGIDA. */
+    /** Cambio de estado. Al cobrar se envía el comprobante con el mismo QR del pedido (sirve para recoger). */
     statusChanged(user, order, appUrl, collector) {
       const lang = langOf(user);
       const t = (k, p) => translate(lang, k, p);
@@ -190,8 +191,8 @@ function createMailer(db, { fetchImpl } = {}) {
           `${intro}${t('COMPROBANTE DE PAGO')}\n${t('Hemos recibido {amount} en mano', { amount: formatMoney(order.total_cents) })}`
           + `${collector ? ` (${t('registrado por {who}', { who: collector })})` : ''} · ${new Date(order.paid_at).toLocaleString(lang === 'ca' ? 'ca-ES' : 'es-ES', { timeZone: 'Europe/Madrid' })}.\n\n`
           + `${t('El pedido está PENDIENTE DE ENTREGA. Te avisaremos cuando esté listo para recoger.')}\n`
-          + `${t('Para recogerlo, enseña el mismo QR del pedido (lo tienes en el correo del pedido y en «Mis pedidos» de la web).')}${tail}`,
-          { lang });
+          + `${t('Para recogerlo, enseña este QR a la comisión.')}${tail}`,
+          { lang, qr: qrUrl(appUrl, order.pay_token), qrCaption: t('QR del pedido {code}', { code }) });
         return;
       }
       const messages = {

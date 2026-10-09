@@ -59,7 +59,7 @@
     <thead><tr><th><%= t('Producto') %></th><th><%= t('Talla') %></th><th><%= t('Nombre jugador') %></th><th><%= t('Dorsal') %></th><th><%= t('Cant.') %></th><th class="num"><%= t('Importe') %></th></tr></thead>
     <tbody>
     <% items.forEach(it => { %>
-      <tr><td><%- include('../partials/line-name', { it }) %><% if (it.color || it.option_value) { %><br><span class="muted small"><%= [it.color, it.option_value].filter(Boolean).join(' · ') %></span><% } %></td><td><%= it.size || '—' %></td><td><%= it.custom_name || '—' %></td><td><%= it.custom_number || '—' %></td>
+      <tr><td><%- include('../partials/line-name', { it }) %><% if (it.color || it.option_value) { %><br><span class="muted small"><%= [it.color, it.option_value].filter(Boolean).join(' · ') %></span><% } %></td><td><%= it.size || '—' %></td><td><%= it.custom_name || (it.no_custom ? t('Sin personalizar') : '—') %></td><td><%= it.custom_number || '—' %></td>
         <td><%= it.quantity %></td><td class="num"><%= formatMoney(it.unit_price_cents * it.quantity) %></td></tr>
     <% }) %>
     </tbody>

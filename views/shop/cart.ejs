@@ -47,7 +47,7 @@
           <span><s class="muted"><%= formatMoney(a.regular) %></s> <strong><%= formatMoney(a.pack.price_cents) %></strong> <span class="badge ok">−<%= formatMoney(a.saving) %></span></span>
         </div>
         <ul class="small">
-          <% a.units.forEach(u => { %><li><%= loc(u, 'product_name') %><% const d = [u.color, u.option_value, u.size && t('Talla') + ' ' + u.size, u.custom_name && '«' + u.custom_name + '» ' + u.custom_number].filter(Boolean); if (d.length) { %> <span class="muted">(<%= d.join(' · ') %>)</span><% } %></li><% }) %>
+          <% a.units.forEach(u => { %><li><%= loc(u, 'product_name') %><% const d = [u.color, u.option_value, u.size && t('Talla') + ' ' + u.size, u.custom_name && '«' + u.custom_name + '» ' + u.custom_number, u.no_custom && t('Sin personalizar')].filter(Boolean); if (d.length) { %> <span class="muted">(<%= d.join(' · ') %>)</span><% } %></li><% }) %>
           <% a.gifts.forEach(g => { %><li class="gift">🎁 <%= loc(g, 'name') %> <span class="badge ok"><%= t('de regalo') %></span></li><% }) %>
         </ul>
       </div>

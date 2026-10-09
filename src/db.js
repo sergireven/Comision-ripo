@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS products (
   description_ca  TEXT,
   price_cents     INTEGER NOT NULL CHECK (price_cents >= 0),
   image           TEXT,
-  personalization INTEGER NOT NULL DEFAULT 0, -- 1 = requiere nombre + dorsal
+  personalization INTEGER NOT NULL DEFAULT 0, -- 1 = requiere nombre + dorsal; 2 = opcional («Sin personalizar»)
   sizes           TEXT,                       -- tallas separadas por comas (opcional)
   active          INTEGER NOT NULL DEFAULT 1,
   created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
@@ -192,6 +192,9 @@ const COLUMNS = [
   ['order_items', 'option_value', 'TEXT'],
   // 'product' = artículo; 'pack' = descuento de un pack (importe negativo); 'gift' = regalo de un pack (0 €)
   ['order_items', 'kind', "TEXT NOT NULL DEFAULT 'product'"],
+  // 1 = la familia ha elegido expresamente «Sin personalizar» (productos con personalización opcional)
+  ['cart_items', 'no_custom', 'INTEGER NOT NULL DEFAULT 0'],
+  ['order_items', 'no_custom', 'INTEGER NOT NULL DEFAULT 0'],
 ];
 
 function migrate(db) {

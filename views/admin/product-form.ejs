@@ -28,7 +28,13 @@
       </label>
       <label><%= t('Descripción (castellano)') %> <textarea name="description" rows="2" maxlength="1000"><%= product.description || '' %></textarea></label>
       <label><%= t('Descripción (catalán)') %> <textarea name="description_ca" rows="2" maxlength="1000" placeholder="<%= t('Opcional') %>"><%= product.description_ca || '' %></textarea></label>
-      <label class="check"><input type="checkbox" name="personalization" value="1" <%= product.personalization ? 'checked' : '' %>> <%= t('Requiere nombre jugador + dorsal') %></label>
+      <label><%= t('Nombre jugador + dorsal') %>
+        <select name="personalization">
+          <option value="0" <%= !product.personalization ? 'selected' : '' %>><%= t('No se personaliza') %></option>
+          <option value="1" <%= product.personalization === 1 ? 'selected' : '' %>><%= t('Obligatorio') %></option>
+          <option value="2" <%= product.personalization === 2 ? 'selected' : '' %>><%= t('Opcional (la familia puede elegir «Sin personalizar»)') %></option>
+        </select>
+      </label>
       <label class="check"><input type="checkbox" name="active" value="1" <%= product.active ? 'checked' : '' %>> <%= t('Visible en la tienda') %></label>
     </div>
     <div>

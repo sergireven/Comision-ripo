@@ -488,7 +488,7 @@ test('correos por Brevo: remitente, contraseña y QR enlazado (imagen de la web)
   res = await request(app).get(`/qr-img/${'0'.repeat(64)}.png`);
   assert.strictEqual(res.status, 404);
 
-  // Comprobante de pago: sin QR
+  // Comprobante de pago: con el mismo QR, para recoger
   const adm = request.agent(app);
   await login(adm, 'comision', 'admin-password');
   const c = await csrfOf(adm, `/admin/qr/${order.pay_token}`);
@@ -496,5 +496,46 @@ test('correos por Brevo: remitente, contraseña y QR enlazado (imagen de la web)
   await wait();
   const receipt = sent.filter((s) => s.body.to[0].email === 'laia@example.com').pop();
   assert.match(receipt.body.textContent, /COMPROVANT|COMPROBANTE/);
-  assert.strictEqual(receipt.body.attachment, undefined, 'el comprobante no lleva QR');
+  assert.strictEqual(receipt.body.attachment[0].name, 'qr.png', 'el comprobante lleva el QR');
+  assert.ok(receipt.body.htmlContent.includes(`/qr-img/${order.pay_token}.png`));
+});
+
+test('personalización opcional: hay que elegir expresamente «Sin personalizar»', async () => {
+  const { db, app, mails } = setup();
+  db.prepare("INSERT INTO products (name, price_cents, personalization) VALUES ('Toalla', 1500, 2)").run();
+  db.prepare("INSERT INTO products (name, price_cents, personalization) VALUES ('Adhesivo casco', 500, 1)").run();
+  openPeriod(db);
+  const fam = request.agent(app);
+  await login(fam, 'laia@example.com', 'clave-familia');
+  let res = await fam.get('/tienda');
+  assert.match(res.text, /name="no_custom" value="1"/, 'opción «Sin personalizar» en la toalla');
+  const _csrf = await csrfOf(fam, '/tienda');
+  const lines = () => db.prepare('SELECT product_id, custom_name, custom_number, no_custom FROM cart_items ORDER BY id').all();
+
+  // Vacío sin elegir nada: no se añade.
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: 1, quantity: 1 });
+  assert.strictEqual(lines().length, 0);
+  // En un producto con personalización obligatoria «Sin personalizar» no vale.
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: 2, quantity: 1, no_custom: '1' });
+  assert.strictEqual(lines().length, 0);
+
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: 1, quantity: 1, no_custom: '1', custom_name: 'Ignorado' });
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: 1, quantity: 1, no_custom: '0', custom_name: 'Laia', custom_number: '7' });
+  assert.deepStrictEqual(lines(), [
+    { product_id: 1, custom_name: null, custom_number: null, no_custom: 1 },
+    { product_id: 1, custom_name: 'Laia', custom_number: '7', no_custom: 0 },
+  ]);
+  res = await fam.get('/carrito');
+  assert.match(res.text, /Sin personalizar|Sense personalitzar/);
+
+  await fam.post('/carrito/confirmar').type('form').send({ _csrf });
+  assert.strictEqual(db.prepare('SELECT SUM(no_custom) AS n FROM order_items').get().n, 1);
+  await wait();
+  assert.match(mails().at(-1).body, /sin personalizar|sense personalitzar/);
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  res = await adm.get('/admin/pedidos/1');
+  assert.match(res.text, /Sin personalizar|Sense personalitzar/);
+  res = await adm.get('/admin/pedidos.csv');
+  assert.match(res.text, /Sin personalizar|Sense personalitzar/);
 });

@@ -13,7 +13,7 @@ El pago se hace en mano a la comisión. La web controla qué ha pedido cada pers
 - **Tienda** con desplegable por tipo de producto, packs, foto, precio, color/modelo, talla y cantidad. Los productos marcados como «nombre jugador + dorsal» piden ambos datos.
 - **Carrito** → revisar → «Realizar pedido». El pedido queda **pendiente de pago** y se puede cancelar mientras no esté pagado.
 - **Mis pedidos**: todos los pedidos con su estado, el importe pendiente, el historial y el **QR del pedido**.
-- Al hacer el pedido recibe por correo el **QR del pedido**, que sirve para pagar y para recoger. Al pagar recibe el **comprobante** (sin QR).
+- Al hacer el pedido recibe por correo el **QR del pedido**, que sirve para pagar y para recoger. Al pagar recibe el **comprobante**, que vuelve a llevar el QR.
 - Barra superior con el periodo de pedidos y la **cuenta atrás hasta el cierre**.
 
 **Comisión (admin)**
@@ -35,7 +35,7 @@ Cada pedido tiene **un único QR**:
 ```
 Hace el pedido ──▶ correo con el QR DEL PEDIDO
         │
-Paga en mano ──▶ la comisión escanea el QR ──▶ «Cobrado» (queda registrado quién cobra) ──▶ correo: COMPROBANTE
+Paga en mano ──▶ la comisión escanea el QR ──▶ «Cobrado» (queda registrado quién cobra) ──▶ correo: COMPROBANTE (con el mismo QR)
         │
 Llega el material ──▶ «Avisar: listo para recoger» ──▶ correo (con el mismo QR) a todos los pedidos pagados
         │
@@ -57,7 +57,7 @@ pendiente de pago ──(la comisión cobra)──▶ pagado · pendiente de ent
 Si la comisión se equivoca, puede deshacer un paso. Cada cambio queda en el historial y se avisa por correo.
 
 ### Correos automáticos
-Cuenta creada, recuperación de contraseña, pedido recibido (con el QR), pago registrado (comprobante), aviso de recogida (con el QR), pedido entregado y pedido cancelado.
+Cuenta creada, recuperación de contraseña, pedido recibido (con el QR), pago registrado (comprobante, con el QR), aviso de recogida (con el QR), pedido entregado y pedido cancelado.
 Si se define `ADMIN_NOTIFY_EMAIL`, la comisión recibe un aviso de cada pedido nuevo o cancelado.
 
 ### Colores, opciones y packs
@@ -92,7 +92,7 @@ Para probarlo con datos de ejemplo: `npm run seed-demo` (admin `comision` / `com
 Primeros pasos en la web: **Productos** → crear los artículos con foto (o cargar el catálogo desde Excel) · **Periodos** → abrir un periodo de pedidos. Los clientes se dan de alta solos con su correo.
 
 ### Correo
-Sin servicio de correo los correos no se envían (solo se registran en *Admin › Correos*); en ese caso, al dar de alta familias con correo la cuenta queda para el «Primer acceso» (la contraseña sale en pantalla) en lugar de enviarse.
+Sin servicio de correo los correos no se envían (solo se registran en *Admin › Correos*); al crear una cuenta la contraseña solo se ve en pantalla.
 
 **Brevo (recomendado, obligatorio en Railway Free/Hobby, que bloquea el SMTP):** crea una cuenta gratuita en brevo.com (300 correos/día), verifica el correo remitente (*Senders*), crea una clave API (*SMTP & API › API Keys*) y define `BREVO_API_KEY` y `MAIL_FROM=Comissió HC Ripollet <correo-verificado@…>`. El QR va como imagen enlazada a la web (`/qr-img/…`) y además adjunto.
 

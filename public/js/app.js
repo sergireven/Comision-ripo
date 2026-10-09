@@ -47,6 +47,20 @@
     });
   });
 
+  // Personalización opcional: los campos de nombre y dorsal solo aparecen (y son obligatorios) al elegir «Personalizar».
+  document.querySelectorAll('[data-custom-choice]').forEach(function (box) {
+    var fields = box.nextElementSibling;
+    if (!fields || !fields.hasAttribute('data-custom-fields')) return;
+    function sync() {
+      var checked = box.querySelector('input:checked');
+      var on = !!checked && checked.value === '0';
+      fields.hidden = !on;
+      fields.querySelectorAll('input').forEach(function (i) { i.disabled = !on; });
+    }
+    box.addEventListener('change', sync);
+    sync();
+  });
+
   // Evita dobles envíos.
   document.querySelectorAll('form').forEach(function (f) {
     f.addEventListener('submit', function (e) {
