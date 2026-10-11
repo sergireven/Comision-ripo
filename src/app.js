@@ -39,6 +39,17 @@ function createApp(db, options = {}) {
   if (process.env.TRUST_PROXY) app.set('trust proxy', 1);
   app.disable('x-powered-by');
 
+  // Adreces antigues del club (p. ex. botiga.clubhoqueiripollet.com) → l'adreça bona (APP_URL), amb el mateix camí.
+  // Així els enllaços i els QR dels correus ja enviats continuen funcionant.
+  const canonical = (() => { try { return new URL(process.env.APP_URL || ''); } catch { return null; } })();
+  app.use((req, res, next) => {
+    if (canonical && (req.method === 'GET' || req.method === 'HEAD')
+      && req.hostname.endsWith('clubhoqueiripollet.com') && req.hostname !== canonical.hostname) {
+      return res.redirect(301, `${canonical.origin}${req.originalUrl}`);
+    }
+    next();
+  });
+
   app.use((req, res, next) => {
     res.set('X-Content-Type-Options', 'nosniff');
     res.set('X-Frame-Options', 'DENY');

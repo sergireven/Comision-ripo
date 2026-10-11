@@ -743,3 +743,20 @@ test('datos del club (okCat360): equipos del CH Ripollet con clasificación, res
   assert.match(sys, /Próximos partidos: J3 18\/10\/2026 12:00: Ch Ripollet A - Cp Manresa/);
   assert.match(sys, /Información del club y de Ripollet/);
 });
+
+test('adreça antiga del club (botiga.…) → redirigeix a APP_URL amb el mateix camí', async () => {
+  const saved = process.env.APP_URL;
+  process.env.APP_URL = 'https://comissioevents.clubhoqueiripollet.com';
+  try {
+    const { app } = setup();
+    let res = await request(app).get('/pedidos/3?x=1').set('Host', 'botiga.clubhoqueiripollet.com');
+    assert.strictEqual(res.status, 301);
+    assert.strictEqual(res.headers.location, 'https://comissioevents.clubhoqueiripollet.com/pedidos/3?x=1');
+    res = await request(app).get('/').set('Host', 'comissioevents.clubhoqueiripollet.com');
+    assert.strictEqual(res.status, 200);
+    res = await request(app).get('/').set('Host', 'comision-ripo-production.up.railway.app');
+    assert.strictEqual(res.status, 200, "l'adreça de Railway continua funcionant");
+  } finally {
+    if (saved === undefined) delete process.env.APP_URL; else process.env.APP_URL = saved;
+  }
+});
