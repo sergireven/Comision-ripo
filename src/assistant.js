@@ -66,6 +66,8 @@ function createAssistant(db, { client, env = process.env } = {}) {
   const api = client || (env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 1, timeout: 30000 }) : null);
   const userLimit = Number(env.ASSISTANT_USER_DAILY_LIMIT) || 30;
   const totalLimit = Number(env.ASSISTANT_DAILY_LIMIT) || 500;
+  // Sin cuenta, además de la sesión se cuenta por conexión (IP), con más margen porque una wifi la comparten muchas familias.
+  const ipLimit = userLimit * 3;
   const orders = createOrderService(db);
   const club = createClubData(db);
 
@@ -154,16 +156,19 @@ function createAssistant(db, { client, env = process.env } = {}) {
     return msgs;
   }
 
-  async function ask({ user, sessionId, lang, messages }) {
+  async function ask({ user, sessionId, ip, lang, messages }) {
     if (!api) return { status: 503, code: 'disabled' };
     const msgs = cleanMessages(messages);
     if (!msgs) return { status: 400, code: 'bad_request' };
 
     const day = madridDay();
-    const who = user ? `u:${user.id}` : `s:${crypto.createHash('sha256').update(String(sessionId)).digest('hex').slice(0, 16)}`;
+    const hash = (v) => crypto.createHash('sha256').update(String(v)).digest('hex').slice(0, 16);
+    const who = user ? `u:${user.id}` : `s:${hash(sessionId)}`;
+    const net = !user && ip ? `i:${hash(ip)}` : null;
     if ((getUse.get(day, '*')?.n || 0) >= totalLimit) return { status: 429, code: 'limit_total' };
     if ((getUse.get(day, who)?.n || 0) >= userLimit) return { status: 429, code: 'limit_user' };
-    db.transaction(() => { addUse.run(day, '*'); addUse.run(day, who); })();
+    if (net && (getUse.get(day, net)?.n || 0) >= ipLimit) return { status: 429, code: 'limit_user' };
+    db.transaction(() => { addUse.run(day, '*'); addUse.run(day, who); if (net) addUse.run(day, net); })();
 
     try {
       const response = await api.messages.create({
@@ -186,7 +191,20 @@ function createAssistant(db, { client, env = process.env } = {}) {
     }
   }
 
-  return { enabled: Boolean(api), ask, knowledge, personal };
+  /** Uso de los últimos días para el panel: preguntas, personas y quién ha preguntado más hoy. */
+  function usage(days = 7) {
+    const since = madridDay(new Date(Date.now() - (days - 1) * 86400000));
+    const perDay = db.prepare(`SELECT day,
+        MAX(CASE WHEN who = '*' THEN n END) AS questions,
+        SUM(CASE WHEN who LIKE 'u:%' OR who LIKE 's:%' THEN 1 ELSE 0 END) AS people
+      FROM assistant_usage WHERE day >= ? GROUP BY day ORDER BY day DESC`).all(since);
+    const top = db.prepare(`SELECT a.who, a.n, u.player_name, u.email, u.username FROM assistant_usage a
+      LEFT JOIN users u ON a.who = 'u:' || u.id
+      WHERE a.day = ? AND (a.who LIKE 'u:%' OR a.who LIKE 's:%') ORDER BY a.n DESC LIMIT 5`).all(madridDay());
+    return { perDay, top, userLimit, totalLimit, ipLimit };
+  }
+
+  return { enabled: Boolean(api), ask, knowledge, personal, usage };
 }
 
 module.exports = { createAssistant, MODEL };

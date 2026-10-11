@@ -32,7 +32,7 @@ function createApp(db, options = {}) {
   const orders = createOrderService(db);
   const assistant = createAssistant(db, { client: options.assistantClient });
   const uploadDir = options.uploadDir || process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
-  const ctx = { db, mailer, orders, uploadDir };
+  const ctx = { db, mailer, orders, uploadDir, assistant };
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, '..', 'views'));
@@ -150,7 +150,7 @@ function createApp(db, options = {}) {
   // Ripo, el asistente: recibe la conversación (JSON, con el token CSRF) y devuelve la respuesta.
   app.post('/asistente', async (req, res, next) => {
     try {
-      const result = await assistant.ask({ user: req.user, sessionId: req.sessionID, lang: req.lang, messages: req.body?.messages });
+      const result = await assistant.ask({ user: req.user, sessionId: req.sessionID, ip: req.ip, lang: req.lang, messages: req.body?.messages });
       res.status(result.status).json(result.reply ? { reply: result.reply } : { error: result.code });
     } catch (err) { next(err); }
   });

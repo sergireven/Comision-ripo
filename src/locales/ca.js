@@ -723,4 +723,13 @@ module.exports = {
   "Cobrar y entregar con el QR, aviso de recogida, resumen para el proveedor y caja.": "Cobrar i lliurar amb el QR, avís de recollida, resum per al proveïdor i caixa.",
   "Manual técnico": "Manual tècnic",
   "Cómo está montada la web: GitHub, Railway, Nominalia, Brevo, Anthropic, okCat360 y mantenimiento.": "Com està muntat el web: GitHub, Railway, Nominalia, Brevo, Anthropic, okCat360 i manteniment.",
+  "Ripo, el asistente": "Ripo, l'assistent",
+  "Hoy: {n} pregunta(s) de {p} persona(s).": "Avui: {n} pregunta(es) de {p} persona(es).",
+  "Límite: {u} por persona y {t} en total al día.": "Límit: {u} per persona i {t} en total al dia.",
+  "Quién ha preguntado más hoy": "Qui ha preguntat més avui",
+  "Visitante sin cuenta": "Visitant sense compte",
+  "límite": "límit",
+  "Últimos días": "Darrers dies",
+  "{n} pregunta(s)": "{n} pregunta(es)",
+  "El coste exacto se ve en la consola de Anthropic (Usage).": "El cost exacte es veu a la consola d'Anthropic (Usage).",
 };

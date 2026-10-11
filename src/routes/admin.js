@@ -14,7 +14,7 @@ const {
 
 const STATUSES = Object.keys(STATUS);
 
-module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
+module.exports = function adminRoutes({ db, mailer, orders, uploadDir, assistant }) {
   const router = express.Router();
   router.use(requireAdmin);
 
@@ -59,7 +59,8 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
       WHERE o.status IN ('pendiente_entrega', 'entregado') GROUP BY o.paid_by ORDER BY total DESC`).all();
     const awaitingNotice = db.prepare(`SELECT COUNT(*) AS n FROM orders
       WHERE status = 'pendiente_entrega' AND ready_at IS NULL`).get().n;
-    res.render('admin/dashboard', { title: 'Panel de la comisión', stats, families, recent, cash, awaitingNotice });
+    const ripo = assistant && assistant.enabled ? assistant.usage(7) : null;
+    res.render('admin/dashboard', { title: 'Panel de la comisión', stats, families, recent, cash, awaitingNotice, ripo });
   });
 
   // ---------- Pedidos ----------

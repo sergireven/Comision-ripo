@@ -775,3 +775,23 @@ test('manuales en PDF: solo la comisión', async () => {
   assert.match(res.headers['content-type'], /pdf/);
   assert.strictEqual((await adm.get('/admin/manuales/..%2Fpackage.json')).status, 404);
 });
+
+test('Ripo: límite por conexión para quien no ha entrado y uso visible en el panel', async () => {
+  const stub = { messages: { create: async () => ({ stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 }, content: [{ type: 'text', text: 'ok' }] }) } };
+  const { db, app } = setup({ assistant: stub });
+  const ask = async (agent) => {
+    const page = await agent.get('/tienda');
+    const _csrf = /data-csrf="([0-9a-f]+)"/.exec(page.text)[1];
+    return agent.post('/asistente').send({ _csrf, messages: [{ role: 'user', content: 'hola' }] });
+  };
+  assert.strictEqual((await ask(request.agent(app))).status, 200);
+  // Con la conexión al límite, una sesión nueva (p. ej. incógnito) tampoco puede seguir
+  db.prepare("UPDATE assistant_usage SET n = 90 WHERE who LIKE 'i:%'").run();
+  assert.strictEqual((await ask(request.agent(app))).status, 429);
+
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  const res = await adm.get('/admin');
+  assert.match(res.text, /Ripo, l(&#39;|')assistent|Ripo, el asistente/);
+  assert.match(res.text, /(Avui|Hoy): 1 pregunta/);
+});
