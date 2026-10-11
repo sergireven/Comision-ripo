@@ -3,7 +3,7 @@
      data-error="<%= t('Ahora mismo no puedo responder. Vuelve a probar en un rato o pregunta a la comisión.') %>"
      data-limit="<%= t('Por hoy ya he respondido muchas preguntas. Vuelve mañana o pregunta a la comisión.') %>"
      data-refusal="<%= t('Eso no te lo puedo responder. Pregunta a la comisión, por favor.') %>"
-     data-thinking="<%= t('Pensando…') %>">
+     data-thinking="<%= t('Pensando…') %>" data-listening="<%= t('Te escucho…') %>" data-link="<%= t('el enlace') %>">
   <button type="button" class="pollet-fab" data-pollet-open aria-label="<%= t('Pregunta a Pollet') %>" aria-expanded="false">
     <img src="/static/img/pollet.svg" alt="" width="44" height="44">
     <span class="pollet-fab-label"><%= t('¿Dudas?') %></span>
@@ -12,6 +12,7 @@
     <header class="pollet-head">
       <img src="/static/img/pollet.svg" alt="" width="36" height="36">
       <div><strong>Pollet</strong><br><span class="small"><%= t('Asistente de la tienda') %></span></div>
+      <button type="button" class="pollet-voice" data-pollet-voice hidden aria-pressed="false" aria-label="<%= t('Leer las respuestas en voz alta') %>" title="<%= t('Leer las respuestas en voz alta') %>">🔇</button>
       <button type="button" class="pollet-close" data-pollet-close aria-label="<%= t('Cerrar') %>">×</button>
     </header>
     <div class="pollet-log" data-pollet-log aria-live="polite">
@@ -25,7 +26,8 @@
     </div>
     <form class="pollet-form" data-pollet-form>
       <textarea rows="1" maxlength="600" placeholder="<%= t('Escribe tu pregunta…') %>" aria-label="<%= t('Tu pregunta') %>" required></textarea>
-      <button class="btn primary" aria-label="<%= t('Enviar') %>">➤</button>
+      <button type="button" class="btn pollet-mic" data-pollet-mic hidden aria-label="<%= t('Hablar') %>" title="<%= t('Pulsa y habla') %>">🎤</button>
+      <button class="btn primary" data-pollet-send aria-label="<%= t('Enviar') %>">➤</button>
     </form>
     <p class="pollet-note"><%= t('Soy un asistente automático y me puedo equivocar. Para pagos y cambios, habla con la comisión.') %></p>
   </section>
