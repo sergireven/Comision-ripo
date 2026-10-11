@@ -4,7 +4,7 @@
  */
 const TEXT_KEYS = ['home_intro', 'home_intro_ca', 'about', 'about_ca'];
 const CONTACT_KEYS = ['contact_email', 'contact_phone', 'contact_place', 'contact_instagram'];
-// Información extra que solo lee Pollet, el asistente (partidos, club, pueblo…). No se muestra en la web.
+// Información extra que solo lee Ripo, el asistente (partidos, club, pueblo…). No se muestra en la web.
 const ASSISTANT_KEYS = ['assistant_info', 'assistant_tone'];
 const KEYS = [...TEXT_KEYS, ...CONTACT_KEYS, ...ASSISTANT_KEYS];
 
@@ -20,7 +20,7 @@ const DEFAULTS = {
 function getSettings(db) {
   const out = { ...DEFAULTS };
   for (const row of db.prepare('SELECT key, value FROM settings').all()) {
-    // El primer texto de Pollet (versión corta en castellano) se sustituye por el nuevo si nadie lo ha cambiado.
+    // El primer texto de Ripo (versión corta en castellano) se sustituye por el nuevo si nadie lo ha cambiado.
     if (row.key === 'assistant_info' && String(row.value || '').startsWith('Partidos, horarios y resultados\n- El calendario')) continue;
     if (row.key === 'assistant_info' && String(row.value || '').trim().endsWith('(Font: articles de Ripollet de la Viquipèdia en català i castellà, resumits.)')) continue;
     if (row.key === 'assistant_info' && String(row.value || '').trim().endsWith('(Fonts: web del Club Hoquei Ripollet i articles de Ripollet de la Viquipèdia en català i castellà, resumits.)')) continue;

@@ -12,7 +12,7 @@ if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
 
 const db = openDb();
 const app = createApp(db);
-// Partidos y clasificaciones del club para Pollet (okCat360): al arrancar si están viejos y luego cada 12 horas.
+// Partidos y clasificaciones del club para Ripo (okCat360): al arrancar si están viejos y luego cada 12 horas.
 if (process.env.ANTHROPIC_API_KEY) createClubData(db).start();
 const port = Number(process.env.PORT || 3000);
 

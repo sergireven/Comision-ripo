@@ -2,7 +2,7 @@ const path = require('path');
 const { execFile } = require('child_process');
 
 /**
- * Datos de los equipos del CH Ripollet (clasificación, resultados y próximos partidos) para Pollet.
+ * Datos de los equipos del CH Ripollet (clasificación, resultados y próximos partidos) para Ripo.
  * Salen de okCat360 (https://okcat360.vercel.app/data.json), que recopila cada día los datos de la federación.
  * La descarga y el análisis (~40 MB) se hacen en un proceso aparte; aquí solo se guarda un resumen pequeño.
  */
@@ -48,7 +48,7 @@ function extractClub(data, today = new Date().toISOString().slice(0, 10)) {
 
 const fmtDate = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 
-/** Texto para la «chuleta» de Pollet. */
+/** Texto para la «chuleta» de Ripo. */
 function clubDataText(summary) {
   if (!summary || !summary.teams || !summary.teams.length) return '';
   const lines = summary.teams.map((t) => {

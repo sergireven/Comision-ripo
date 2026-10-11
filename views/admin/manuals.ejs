@@ -1,0 +1,13 @@
+<%- include('../partials/header') %>
+<h1><%= t('Manuales') %></h1>
+<p class="muted"><%= t('Documentación de la web en PDF. Solo la comisión puede abrir esta sección.') %></p>
+<div class="grid two">
+  <% manuals.forEach(m => { %>
+    <a class="card manual-card" href="/admin/manuales/<%= m.file %>" target="_blank" rel="noopener">
+      <strong><%= t(m.title) %></strong>
+      <span class="muted small"><%= t(m.desc) %></span>
+      <span class="small"><%= t('Abrir PDF') %> ↗</span>
+    </a>
+  <% }) %>
+</div>
+<%- include('../partials/footer') %>

@@ -8,7 +8,7 @@ const { createClubData } = require('./club-data');
 const Anthropic = sdk.default || sdk;
 
 /**
- * «Pollet»: asistente virtual de la tienda (Claude Haiku 5.5).
+ * «Ripo»: asistente virtual de la tienda (Claude Haiku 5.5).
  * Responde dudas con la guía de uso, el catálogo y los periodos reales y, si la persona ha entrado, sus pedidos.
  * Sin ANTHROPIC_API_KEY no se activa. Límites diarios por persona y en total para contener el gasto.
  */
@@ -37,7 +37,7 @@ const GUIDE = `
 `;
 
 const RULES = `
-Eres «Pollet», el asistente virtual (un pollito) del Club Hoquei Ripollet, en la web de su Comissió d'esdeveniments.
+Eres «Ripo», el asistente virtual (un pollito, como el del escudo) del Club Hoquei Ripollet, en la web de su Comissió d'esdeveniments.
 Ayudas a las familias con todo lo del club: partidos, resultados y clasificaciones de nuestros equipos, la escuela de hockey, el club y Ripollet,
 y también con la tienda: cómo comprar, productos, tallas, packs, pagos, recogida y el estado de sus pedidos.
 Si preguntan «cuándo juegan nuestros equipos» en general, da los próximos partidos de los equipos más destacados (el primer equipo primero) y ofrece detallar el de su categoría.

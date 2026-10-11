@@ -760,3 +760,18 @@ test('adreça antiga del club (botiga.…) → redirigeix a APP_URL amb el matei
     if (saved === undefined) delete process.env.APP_URL; else process.env.APP_URL = saved;
   }
 });
+
+test('manuales en PDF: solo la comisión', async () => {
+  const { app } = setup();
+  const fam = request.agent(app);
+  await login(fam, 'laia@example.com', 'clave-familia');
+  assert.strictEqual((await fam.get('/admin/manuales/manual-tecnico.pdf')).status, 403);
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  let res = await adm.get('/admin/manuales');
+  assert.match(res.text, /manual-tecnico\.pdf/);
+  res = await adm.get('/admin/manuales/manual-tecnico.pdf');
+  assert.strictEqual(res.status, 200);
+  assert.match(res.headers['content-type'], /pdf/);
+  assert.strictEqual((await adm.get('/admin/manuales/..%2Fpackage.json')).status, 404);
+});

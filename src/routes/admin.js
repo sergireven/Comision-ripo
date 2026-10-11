@@ -660,6 +660,20 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
   });
 
   // ---------- Registro de correos ----------
+  // ---------- Manuales (PDF en docs/, solo para la comisión) ----------
+  const MANUALS = [
+    { file: 'manual-families.pdf', title: 'Manual para las familias', desc: 'Cómo crear la cuenta, comprar, pagar y recoger. Para enviar a las familias.' },
+    { file: 'manual-comissio.pdf', title: 'Guía para la comisión', desc: 'Cobrar y entregar con el QR, aviso de recogida, resumen para el proveedor y caja.' },
+    { file: 'manual-tecnico.pdf', title: 'Manual técnico', desc: 'Cómo está montada la web: GitHub, Railway, Nominalia, Brevo, Anthropic, okCat360 y mantenimiento.' },
+  ];
+  router.get('/manuales', (req, res) => res.render('admin/manuals', { title: 'Manuales', manuals: MANUALS }));
+  router.get('/manuales/:file', (req, res) => {
+    const manual = MANUALS.find((m) => m.file === req.params.file);
+    if (!manual) return res.status(404).render('error', { title: 'No encontrado', message: 'La página que buscas no existe.' });
+    res.set('Cache-Control', 'private, no-store');
+    res.sendFile(path.join(__dirname, '..', '..', 'docs', manual.file));
+  });
+
   router.get('/emails', (req, res) => {
     const list = db.prepare('SELECT * FROM email_log ORDER BY id DESC LIMIT 200').all();
     res.render('admin/emails', { title: 'Correos enviados', list, smtp: Boolean(process.env.SMTP_HOST) });

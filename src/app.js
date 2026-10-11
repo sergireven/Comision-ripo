@@ -147,7 +147,7 @@ function createApp(db, options = {}) {
     } catch (err) { next(err); }
   });
 
-  // Pollet, el asistente: recibe la conversación (JSON, con el token CSRF) y devuelve la respuesta.
+  // Ripo, el asistente: recibe la conversación (JSON, con el token CSRF) y devuelve la respuesta.
   app.post('/asistente', async (req, res, next) => {
     try {
       const result = await assistant.ask({ user: req.user, sessionId: req.sessionID, lang: req.lang, messages: req.body?.messages });
