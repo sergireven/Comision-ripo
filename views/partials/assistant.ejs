@@ -8,19 +8,20 @@
     <img src="/static/img/pollet.svg" alt="" width="44" height="44">
     <span class="pollet-fab-label"><%= t('¿Dudas?') %></span>
   </button>
-  <section class="pollet-panel" data-pollet-panel hidden aria-label="<%= t('Pollet, el asistente de la tienda') %>">
+  <section class="pollet-panel" data-pollet-panel hidden aria-label="<%= t('Pollet, el asistente del CH Ripollet') %>">
     <header class="pollet-head">
       <img src="/static/img/pollet.svg" alt="" width="36" height="36">
-      <div><strong>Pollet</strong><br><span class="small"><%= t('Asistente de la tienda') %></span></div>
+      <div><strong>Pollet</strong><br><span class="small"><%= t('El asistente del CH Ripollet') %></span></div>
       <button type="button" class="pollet-voice" data-pollet-voice hidden aria-pressed="false" aria-label="<%= t('Leer las respuestas en voz alta') %>" title="<%= t('Leer las respuestas en voz alta') %>">🔇</button>
       <button type="button" class="pollet-close" data-pollet-close aria-label="<%= t('Cerrar') %>">×</button>
     </header>
     <div class="pollet-log" data-pollet-log aria-live="polite">
-      <div class="pollet-msg bot"><%= t('¡Hola! Soy Pollet. Pregúntame lo que quieras sobre la tienda: productos, tallas, packs, cómo pagar o tus pedidos.') %></div>
+      <div class="pollet-msg bot"><%= t('¡Hola! Soy Pollet, el asistente del CH Ripollet. Pregúntame lo que quieras: cuándo juegan nuestros equipos, la escuela de hockey, la tienda y tus pedidos, o la historia del club y de Ripollet.') %></div>
       <div class="pollet-chips" data-pollet-chips>
+        <button type="button"><%= t('¿Cuándo juegan nuestros equipos?') %></button>
+        <button type="button"><%= t('¿Cómo me apunto a la escuela de hockey?') %></button>
         <button type="button"><%= t('¿Cómo hago un pedido?') %></button>
         <button type="button"><%= t('¿Cómo funcionan los packs?') %></button>
-        <button type="button"><%= t('¿Cuándo cierran los pedidos?') %></button>
         <% if (user && user.role === 'family') { %><button type="button"><%= t('¿Cómo está mi pedido?') %></button><% } %>
       </div>
     </div>

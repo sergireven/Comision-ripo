@@ -698,4 +698,9 @@ module.exports = {
   "el enlace": "l’enllaç",
   "Personalidad y tono de Pollet": "Personalitat i to del Pollet",
   "Cómo quieres que hable el asistente: más formal o más coloquial, con o sin emojis, expresiones… Pollet siempre responde en el idioma en que le escriben.": "Com vols que parli l'assistent: més formal o més col·loquial, amb emojis o sense, expressions… El Pollet sempre respon en l'idioma en què li escriuen.",
+  "Pollet, el asistente del CH Ripollet": "Pollet, l'assistent del CH Ripollet",
+  "El asistente del CH Ripollet": "L'assistent del CH Ripollet",
+  "¡Hola! Soy Pollet, el asistente del CH Ripollet. Pregúntame lo que quieras: cuándo juegan nuestros equipos, la escuela de hockey, la tienda y tus pedidos, o la historia del club y de Ripollet.": "Hola! Sóc el Pollet, l'assistent del CH Ripollet. Pregunta'm el que vulguis: quan juguen els nostres equips, l'escola d'hoquei, la botiga i les teves comandes, o la història del club i de Ripollet.",
+  "¿Cuándo juegan nuestros equipos?": "Quan juguen els nostres equips?",
+  "¿Cómo me apunto a la escuela de hockey?": "Com m'apunto a l'escola d'hoquei?",
 };
