@@ -669,8 +669,7 @@ test('Pollet, el asistente: oculto sin clave; responde con el catálogo y los pe
   assert.ok(calls[0].system[0].cache_control, 'la guía y el catálogo se cachean');
   assert.match(sys, /Camiseta afició: 15,00/);
   assert.match(sys, /No ha iniciado sesión/);
-  assert.match(sys, /Personalidad y tono
-.*Ripo Ripo/, 'tono editable con el coloquial por defecto');
+  assert.match(sys, /Personalidad y tono\n.*Ripo Ripo/, 'tono editable con el coloquial por defecto');
 
   // Conversación mal formada
   res = await anon.post('/asistente').send({ _csrf, messages: [{ role: 'assistant', content: 'x' }] });
