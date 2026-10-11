@@ -547,6 +547,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
     const values = {};
     for (const key of TEXT_KEYS) values[key] = String(req.body[key] || '').trim().slice(0, 5000);
     for (const key of CONTACT_KEYS) values[key] = String(req.body[key] || '').trim().slice(0, 200);
+    if ('assistant_info' in req.body) values.assistant_info = String(req.body.assistant_info || '').trim().slice(0, 15000);
     // Sin texto en castellano se volvería a mostrar el de ejemplo: se exige.
     let error = null;
     if (!values.home_intro || !values.about) error = 'Rellena al menos los textos en castellano.';

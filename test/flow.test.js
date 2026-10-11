@@ -10,6 +10,7 @@ const { openDb } = require('../src/db');
 const { createApp } = require('../src/app');
 const { createMailer } = require('../src/mailer');
 const { fromLocalInput, toLocalInput, sha256 } = require('../src/util');
+const { extractClub, createClubData } = require('../src/club-data');
 
 /**
  * Base de datos en memoria con un administrador («comision») y una clienta (laia@example.com / clave-familia).
@@ -699,4 +700,45 @@ test('Pollet, el asistente: oculto sin clave; responde con el catálogo y los pe
   stub.messages.create = async () => { const e = new Error('credit balance too low'); e.status = 400; throw e; };
   res = await anon.post('/asistente').send({ _csrf, messages: [{ role: 'user', content: 'hola' }] });
   assert.strictEqual(res.status, 503);
+});
+
+test('datos del club (okCat360): equipos del CH Ripollet con clasificación, resultados y próximos partidos para Pollet', async () => {
+  const data = {
+    season: '2026-27', updatedAt: '2026-10-11T14:40:00Z',
+    categories: {
+      'Aleví': [{
+        name: 'ALEVÍ OR 1 (2026-27)',
+        classification: [
+          { pos: 1, team: 'CP RODA', pts: 6, pj: 2, pg: 2, pe: 0, pp: 0, gf: 9, gc: 2 },
+          { pos: 2, team: 'CH RIPOLLET A', pts: 3, pj: 2, pg: 1, pe: 0, pp: 1, gf: 5, gc: 4 },
+        ],
+        calendar: [
+          { jornada: 1, home: 'Ch Ripollet A', away: 'Cp Roda', date: '27-09-2026', time: '10:00', homeScore: 1, awayScore: 3, played: true },
+          { jornada: 2, home: 'Cp Manresa', away: 'Ch Ripollet A', date: '04-10-2026', time: '11:00', homeScore: 1, awayScore: 4, played: true },
+          { jornada: 3, home: 'Ch Ripollet A', away: 'Cp Manresa', date: '18-10-2026', time: '12:00', played: false },
+          { jornada: 3, home: 'Ch Ripollet B', away: 'Cp Vic', date: '18-10-2026', time: '13:00', played: false },
+          { jornada: 1, home: 'Cp Roda', away: 'Cp Vic', date: '27-09-2026', time: '10:00', homeScore: 2, awayScore: 2, played: true },
+        ],
+      }],
+      'Juvenil': [{ name: 'JUVENIL OR 5 (2026-27)', classification: [{ pos: 1, team: 'CP VIC' }], calendar: [] }],
+    },
+  };
+  const s = extractClub(data, '2026-10-11');
+  assert.strictEqual(s.teams.length, 1, 'solo los equipos del Ripollet');
+  const team = s.teams[0];
+  assert.deepStrictEqual([team.team, team.competition, team.standing.pos, team.standing.of], ['CH RIPOLLET A', 'ALEVÍ OR 1', 2, 2]);
+  assert.deepStrictEqual(team.recent.map((g) => g.score), ['1-3', '1-4']);
+  assert.deepStrictEqual(team.upcoming.map((g) => g.away), ['Cp Manresa'], 'no mezcla el equipo B');
+
+  const stub = { messages: { create: async (params) => { stub.last = params; return { stop_reason: 'end_turn', usage: {}, content: [{ type: 'text', text: 'ok' }] }; } } };
+  const { db, app } = setup({ assistant: stub });
+  createClubData(db).store(s);
+  const anon = request.agent(app);
+  const res = await anon.get('/tienda');
+  const _csrf = /data-csrf="([0-9a-f]+)"/.exec(res.text)[1];
+  await anon.post('/asistente').send({ _csrf, messages: [{ role: 'user', content: 'Quan juga l\'aleví A?' }] });
+  const sys = stub.last.system[0].text;
+  assert.match(sys, /CH RIPOLLET A · Aleví · ALEVÍ OR 1: 2º de 2, 3 puntos/);
+  assert.match(sys, /Próximos partidos: J3 18\/10\/2026 12:00: Ch Ripollet A - Cp Manresa/);
+  assert.match(sys, /Información del club y de Ripollet/);
 });

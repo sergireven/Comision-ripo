@@ -3,6 +3,7 @@ require('./platform').applyPlatformDefaults();
 
 const { openDb } = require('./db');
 const { createApp } = require('./app');
+const { createClubData } = require('./club-data');
 
 if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
   console.error('Falta SESSION_SECRET en el entorno (.env).');
@@ -11,6 +12,8 @@ if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
 
 const db = openDb();
 const app = createApp(db);
+// Partidos y clasificaciones del club para Pollet (okCat360): al arrancar si están viejos y luego cada 12 horas.
+if (process.env.ANTHROPIC_API_KEY) createClubData(db).start();
 const port = Number(process.env.PORT || 3000);
 
 app.listen(port, () => {

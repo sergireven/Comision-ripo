@@ -689,4 +689,6 @@ module.exports = {
   "Tu pregunta": "La teva pregunta",
   "Enviar": "Enviar",
   "Soy un asistente automático y me puedo equivocar. Para pagos y cambios, habla con la comisión.": "Sóc un assistent automàtic i em puc equivocar. Per a pagaments i canvis, parla amb la comissió.",
+  "Información del club para Pollet": "Informació del club per al Pollet",
+  "Solo la lee Pollet, el asistente, para responder dudas generales: próximos partidos, entrenos, eventos, historia del club o del pueblo… No se muestra en la web. Escríbelo en frases cortas; Pollet responde en catalán o castellano igualmente.": "Només la llegeix el Pollet, l'assistent, per respondre dubtes generals: propers partits, entrenaments, esdeveniments, història del club o del poble… No es mostra al web. Escriu-ho en frases curtes; el Pollet respon igualment en català o castellà.",
 };
