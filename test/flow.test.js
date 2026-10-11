@@ -15,7 +15,7 @@ const { fromLocalInput, toLocalInput, sha256 } = require('../src/util');
  * Base de datos en memoria con un administrador («comision») y una clienta (laia@example.com / clave-familia).
  * Con { brevo: true } los correos «salen» por una API de Brevo simulada; `sent` guarda lo que se le envía.
  */
-function setup({ brevo = false } = {}) {
+function setup({ brevo = false, assistant = null } = {}) {
   const db = openDb(':memory:');
   const sent = [];
   const uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ripo-'));
@@ -30,7 +30,7 @@ function setup({ brevo = false } = {}) {
     if (saved.key === undefined) delete process.env.BREVO_API_KEY; else process.env.BREVO_API_KEY = saved.key;
     if (saved.from === undefined) delete process.env.MAIL_FROM; else process.env.MAIL_FROM = saved.from;
   }
-  const server = createApp(db, { uploadDir, mailer }).listen(0);
+  const server = createApp(db, { uploadDir, mailer, assistantClient: assistant }).listen(0);
   test.after(() => server.close());
   const app = server;
   // Correos registrados en email_log.
@@ -636,4 +636,67 @@ test('errores encontrados en las pruebas E2E: CSRF tras el alta, productos ocult
   assert.match(res.text.replace(/\u00a0/g, ' '), /total <strong>18,00 €<\/strong>/);
   res = await adm.get('/admin/pedidos?estado=cancelado');
   assert.match(res.text.replace(/\u00a0/g, ' '), /total <strong>10,00 €<\/strong>/);
+});
+
+test('Pollet, el asistente: oculto sin clave; responde con el catálogo y los pedidos de la persona; límites', async () => {
+  // Sin clave de la API: no aparece y la ruta responde 503
+  {
+    const { app } = setup();
+    const res = await request(app).get('/tienda');
+    assert.doesNotMatch(res.text, /data-pollet/);
+  }
+
+  const calls = [];
+  const stub = { messages: { create: async (params) => { calls.push(params); return { stop_reason: 'end_turn', usage: { input_tokens: 100, output_tokens: 20 }, content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: 'Hola! Es paga en efectiu.' }] }; } } };
+  const { db, app } = setup({ assistant: stub });
+  db.prepare("INSERT INTO products (name, price_cents, sizes) VALUES ('Camiseta afició', 1500, 'S, M')").run();
+  openPeriod(db);
+  const anon = request.agent(app);
+  let res = await anon.get('/tienda');
+  assert.match(res.text, /data-pollet/, 'el pollito aparece');
+  const _csrf = /data-csrf="([0-9a-f]+)"/.exec(res.text)[1];
+
+  // CSRF obligatorio
+  res = await anon.post('/asistente').send({ messages: [{ role: 'user', content: 'hola' }] });
+  assert.strictEqual(res.status, 403);
+
+  res = await anon.post('/asistente').send({ _csrf, messages: [{ role: 'user', content: 'Com pago?' }] });
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(res.body.reply, 'Hola! Es paga en efectiu.');
+  const sys = calls[0].system.map((b) => b.text).join('\n');
+  assert.strictEqual(calls[0].model, 'claude-haiku-5-5');
+  assert.ok(calls[0].system[0].cache_control, 'la guía y el catálogo se cachean');
+  assert.match(sys, /Camiseta afició: 15,00/);
+  assert.match(sys, /No ha iniciado sesión/);
+
+  // Conversación mal formada
+  res = await anon.post('/asistente').send({ _csrf, messages: [{ role: 'assistant', content: 'x' }] });
+  assert.strictEqual(res.status, 400);
+
+  // Con sesión: ve solo sus pedidos
+  const fam = request.agent(app);
+  await login(fam, 'laia@example.com', 'clave-familia');
+  const c = await csrfOf(fam, '/tienda');
+  await fam.post('/carrito/anadir').type('form').send({ _csrf: c, product_id: 1, quantity: 1, size: 'M' });
+  await fam.post('/carrito/confirmar').type('form').send({ _csrf: c });
+  res = await fam.post('/asistente').send({ _csrf: c, messages: [{ role: 'user', content: 'Com està la meva comanda?' }] });
+  const sys2 = calls.at(-1).system.map((b) => b.text).join('\n');
+  assert.match(sys2, /#0001/);
+  assert.match(sys2, /PENDIENTE DE PAGO/);
+  assert.match(sys2, /laia@example.com/);
+
+  // En el panel de la comisión no aparece
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  assert.doesNotMatch((await adm.get('/admin')).text, /data-pollet/);
+
+  // Límite por persona y día
+  db.prepare("UPDATE assistant_usage SET n = 30 WHERE who LIKE 'u:%'").run();
+  res = await fam.post('/asistente').send({ _csrf: c, messages: [{ role: 'user', content: 'otra' }] });
+  assert.strictEqual(res.status, 429);
+
+  // Si la API falla (sin saldo, caída…), responde 503 sin romper nada
+  stub.messages.create = async () => { const e = new Error('credit balance too low'); e.status = 400; throw e; };
+  res = await anon.post('/asistente').send({ _csrf, messages: [{ role: 'user', content: 'hola' }] });
+  assert.strictEqual(res.status, 503);
 });

@@ -63,6 +63,7 @@
 
   // Evita dobles envíos.
   document.querySelectorAll('form').forEach(function (f) {
+    if (f.hasAttribute('data-pollet-form')) return; // el chat gestiona su propio botón
     f.addEventListener('submit', function (e) {
       if (e.defaultPrevented) return;
       setTimeout(function () { f.querySelectorAll('button').forEach(function (b) { b.disabled = true; }); }, 0);

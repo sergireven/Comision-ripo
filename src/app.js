@@ -5,6 +5,7 @@ const QRCode = require('qrcode');
 const session = require('express-session');
 const { SqliteStore } = require('./session-store');
 const { createMailer } = require('./mailer');
+const { createAssistant } = require('./assistant');
 const { shopStatus, createOrderService } = require('./services');
 const util = require('./util');
 const { getSettings } = require('./settings');
@@ -29,6 +30,7 @@ function createApp(db, options = {}) {
   const app = express();
   const mailer = options.mailer || createMailer(db);
   const orders = createOrderService(db);
+  const assistant = createAssistant(db, { client: options.assistantClient });
   const uploadDir = options.uploadDir || process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
   const ctx = { db, mailer, orders, uploadDir };
 
@@ -48,6 +50,7 @@ function createApp(db, options = {}) {
     Object.assign(res.locals, util, {
       user: null, csrf: '', path: req.path, flash: null, cartCount: 0, shop: { open: false }, site: {},
       clubName: process.env.CLUB_NAME || 'Club Hoquei Ripollet', assetVersion: ASSET_VERSION,
+      assistantEnabled: assistant.enabled,
     });
     setLocale(req, res, detectLang(req));
     next();
@@ -56,6 +59,7 @@ function createApp(db, options = {}) {
   app.get('/static/vendor/jsQR.js', (req, res) => res.sendFile(require.resolve('jsqr/dist/jsQR.js')));
   app.use('/uploads', express.static(uploadDir, { maxAge: '1d' }));
   app.use(express.urlencoded({ extended: false, limit: '200kb' }));
+  app.use(express.json({ limit: '20kb' }));
 
   app.use(session({
     store: new SqliteStore(db),
@@ -129,6 +133,14 @@ function createApp(db, options = {}) {
       if (!orders.findByToken(req.params.token)) return res.status(404).end();
       const png = await QRCode.toBuffer(`${req.appUrl}/admin/qr/${req.params.token}`, { width: 320, margin: 2 });
       res.set('Cache-Control', 'private, max-age=86400').type('png').send(png);
+    } catch (err) { next(err); }
+  });
+
+  // Pollet, el asistente: recibe la conversación (JSON, con el token CSRF) y devuelve la respuesta.
+  app.post('/asistente', async (req, res, next) => {
+    try {
+      const result = await assistant.ask({ user: req.user, sessionId: req.sessionID, lang: req.lang, messages: req.body?.messages });
+      res.status(result.status).json(result.reply ? { reply: result.reply } : { error: result.code });
     } catch (err) { next(err); }
   });
 

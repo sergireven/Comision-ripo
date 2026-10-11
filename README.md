@@ -66,6 +66,13 @@ Si se define `ADMIN_NOTIFY_EMAIL`, la comisión recibe un aviso de cada pedido n
 - En el carrito los packs se aplican solos con la combinación que más ahorra, tanto si la familia añade el pack entero como si añade los productos por separado (2 camisetas + 2 bufandas = 2 packs). Se ve el pack aplicado, los productos de cada pack y el descuento.
 - En el pedido el descuento queda como una línea en negativo y los regalos como líneas a 0 €, así el total, los correos, el CSV y la caja cuadran. El *Resumen* para el proveedor cuenta los regalos como unidades.
 
+### Pollet, el asistente virtual
+Un pollito en la esquina de la web (no en el panel de la comisión) que responde dudas de las familias con **Claude Haiku 5.5**. Sabe cómo funciona la tienda, el catálogo, los packs y el periodo de pedidos reales y, si la persona ha entrado, sus pedidos y su carrito. No hace acciones: explica cómo hacerlas o remite a la comisión.
+
+- Se activa al definir  (clave de la consola de Anthropic, platform.claude.com). Sin clave no aparece.
+- Límites diarios para contener el gasto:  (preguntas por persona, 30 por defecto) y  (en total, 500). Las cuentas quedan en la tabla .
+- Coste orientativo: unos 0,002 $ por conversación. Si se acaba el saldo o la API falla, el pollito dice que ahora no puede responder y la web sigue igual.
+
 ### Cargar el catálogo desde Excel
 La plantilla `plantilla-articulos-v2.xlsx` tiene una hoja de artículos y otra de packs (con IDs numéricos). Las fotos van en la carpeta `img/`.
 

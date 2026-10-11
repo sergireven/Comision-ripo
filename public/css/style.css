@@ -314,6 +314,33 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 .pack-choice { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px 2px; margin: 0 0 10px; }
 .pack-choice legend { font-size: .85rem; font-weight: 700; padding: 0 4px; }
 [data-custom-fields][hidden] { display: none; }
+/* Pollet, el asistente */
+.pollet { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 50; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px; }
+.pollet-fab { display: flex; align-items: center; gap: 6px; background: var(--brand); color: #fff; border: 0; border-radius: 999px; padding: 6px 16px 6px 6px; font: inherit; font-weight: 700; cursor: pointer; box-shadow: 0 6px 18px rgba(11, 61, 145, .35); }
+.pollet-fab img { background: #fff; border-radius: 50%; padding: 2px; }
+.pollet-fab:focus-visible, .pollet-close:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.pollet.is-open .pollet-fab-label { display: none; }
+.pollet.is-open .pollet-fab { padding: 6px; }
+.pollet-panel { width: min(370px, calc(100vw - 32px)); height: min(540px, calc(100vh - 120px)); background: var(--card); border-radius: 16px; box-shadow: 0 12px 40px rgba(16, 24, 40, .25); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); }
+.pollet-panel[hidden] { display: none; }
+.pollet-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--brand); color: #fff; line-height: 1.2; }
+.pollet-head img { background: #fff; border-radius: 50%; padding: 2px; }
+.pollet-head .small { opacity: .85; }
+.pollet-close { margin-left: auto; background: transparent; border: 0; color: #fff; font-size: 26px; line-height: 1; cursor: pointer; padding: 0 6px; }
+.pollet-log { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); }
+.pollet-msg { max-width: 85%; padding: 8px 12px; border-radius: 14px; white-space: pre-wrap; word-wrap: break-word; font-size: .95rem; line-height: 1.4; }
+.pollet-msg.bot { background: var(--card); border: 1px solid var(--line); align-self: flex-start; border-bottom-left-radius: 4px; }
+.pollet-msg.user { background: var(--brand); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.pollet-msg.pending { color: var(--muted); font-style: italic; }
+.pollet-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pollet-chips[hidden] { display: none; }
+.pollet-chips button { border: 1px solid var(--brand); color: var(--brand); background: var(--card); border-radius: 999px; padding: 5px 10px; font: inherit; font-size: .85rem; cursor: pointer; }
+.pollet-form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); background: var(--card); align-items: flex-end; }
+.pollet-form textarea { margin: 0; resize: none; min-height: 40px; max-height: 120px; }
+.pollet-form .btn { flex: 0 0 auto; padding: 8px 14px; }
+.pollet-note { margin: 0; padding: 0 12px 8px; font-size: .72rem; color: var(--muted); background: var(--card); }
+@media print { .pollet { display: none; } }
+
 .custom-choice { border: 1px solid var(--line); border-radius: 10px; padding: 4px 10px 0; margin: 0 0 10px; }
 .custom-choice legend { font-size: .85rem; font-weight: 700; padding: 0 4px; }
 .custom-choice label.check { font-size: .9rem; margin-bottom: 6px; align-items: flex-start; }
