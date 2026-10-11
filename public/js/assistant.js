@@ -106,7 +106,7 @@
   function speak(text) {
     if (!voiceOn || !window.speechSynthesis) return;
     stopSpeaking();
-    var u = new SpeechSynthesisUtterance(text.replace(/https?:\/\/\S+/g, root.getAttribute('data-link')));
+    var u = new SpeechSynthesisUtterance(text.replace(/https?:\/\/\S+/g, root.getAttribute('data-link')).replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, ''));
     var v = pickVoice();
     if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = lang; }
     window.speechSynthesis.speak(u);

@@ -36,6 +36,13 @@
   </section>
 
   <section class="card">
+    <h2><%= t('Personalidad y tono de Pollet') %></h2>
+    <p class="hint"><%= t('Cómo quieres que hable el asistente: más formal o más coloquial, con o sin emojis, expresiones… Pollet siempre responde en el idioma en que le escriben.') %></p>
+    <label class="sr-only" for="assistant_tone"><%= t('Personalidad y tono de Pollet') %></label>
+    <textarea id="assistant_tone" name="assistant_tone" rows="5" maxlength="2000"><%= values.assistant_tone || '' %></textarea>
+  </section>
+
+  <section class="card">
     <h2><%= t('Información del club para Pollet') %></h2>
     <p class="hint"><%= t('Solo la lee Pollet, el asistente, para responder dudas generales: próximos partidos, entrenos, eventos, historia del club o del pueblo… No se muestra en la web. Escríbelo en frases cortas; Pollet responde en catalán o castellano igualmente.') %></p>
     <label class="sr-only" for="assistant_info"><%= t('Información del club para Pollet') %></label>

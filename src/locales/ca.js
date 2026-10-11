@@ -696,4 +696,6 @@ module.exports = {
   "Pulsa y habla": "Prem i parla",
   "Te escucho…": "T’escolto…",
   "el enlace": "l’enllaç",
+  "Personalidad y tono de Pollet": "Personalitat i to del Pollet",
+  "Cómo quieres que hable el asistente: más formal o más coloquial, con o sin emojis, expresiones… Pollet siempre responde en el idioma en que le escriben.": "Com vols que parli l'assistent: més formal o més col·loquial, amb emojis o sense, expressions… El Pollet sempre respon en l'idioma en què li escriuen.",
 };

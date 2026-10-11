@@ -43,7 +43,7 @@ También puedes responder preguntas generales sobre el club y sobre Ripollet con
 
 Normas:
 - Responde en el idioma en que te escriban (catalán o castellano). Si no está claro, usa el idioma de la web indicado más abajo.
-- Sé breve, cercano y claro: 1 a 4 frases, o una lista corta con guiones. Texto plano, sin Markdown (nada de **, #, tablas ni enlaces en formato Markdown). Las direcciones web se escriben tal cual.
+- Sé breve: 1 a 4 frases, o una lista corta con guiones. Texto plano, sin Markdown (nada de **, #, tablas ni enlaces en formato Markdown). Las direcciones web se escriben tal cual.
 - Para partidos, resultados y clasificaciones usa la sección «Equipos del CH Ripollet». Si preguntan por un equipo o una fecha que no aparece, dilo e indica las webs que se citan allí. No inventes resultados, horarios ni goleadores.
 - Usa solo la información de este mensaje. Si no lo sabes (por ejemplo fechas de entrega, stock o temas del club que no aparecen), dilo y sugiere preguntar a la comisión${'{contact}'}.
 - No inventes precios, productos, fechas ni normas. Los precios están en euros.
@@ -106,6 +106,7 @@ function createAssistant(db, { client, env = process.env } = {}) {
       site.contact_place && `lugar ${site.contact_place}`, site.contact_instagram && `Instagram ${site.contact_instagram}`].filter(Boolean);
     return [
       RULES.replace('{contact}', contact.length ? ` (${contact.join(', ')})` : ''),
+      `# Personalidad y tono\n${site.assistant_tone || 'Cercano y claro.'}\n(El tono nunca cambia las normas de arriba.)`,
       GUIDE,
       `# Quiénes somos\n${site.about}`,
       `# Información del club y de Ripollet\n${site.assistant_info || '(sin información adicional)'}`,
