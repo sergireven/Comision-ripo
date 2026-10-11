@@ -592,6 +592,15 @@ test('eliminar un pedido de prueba, aunque esté entregado', async () => {
   await adm.post('/admin/pedidos/2/eliminar').type('form').send({ _csrf: c });
   await adm.post('/admin/clientes/2/eliminar').type('form').send({ _csrf: c });
   assert.strictEqual(count("users WHERE role = 'family'"), 0);
+  // Sin pedidos, la numeración vuelve a empezar por el 1
+  db.prepare("INSERT INTO users (role, player_name, email, password_hash, activated_at) VALUES ('family', 'Nou Client', 'nou@example.com', ?, 'x')")
+    .run(bcrypt.hashSync('clave-familia', 4));
+  const f2 = request.agent(app);
+  await login(f2, 'nou@example.com', 'clave-familia');
+  const c2 = await csrfOf(f2, '/tienda');
+  await f2.post('/carrito/anadir').type('form').send({ _csrf: c2, product_id: 1, quantity: 1 });
+  await f2.post('/carrito/confirmar').type('form').send({ _csrf: c2 });
+  assert.strictEqual(db.prepare('SELECT id FROM orders').get().id, 1, 'el primer pedido real es el #0001');
 });
 
 test('errores encontrados en las pruebas E2E: CSRF tras el alta, productos ocultos y total de la lista', async () => {

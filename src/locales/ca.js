@@ -666,6 +666,7 @@ module.exports = {
   "Pedido {code} eliminado.": "Comanda {code} eliminada.",
   "¿Eliminar el pedido {code} para siempre? No se puede deshacer.": "Eliminar la comanda {code} per sempre? No es pot desfer.",
   "Eliminar pedido": "Eliminar comanda",
-  "Para borrar pedidos de prueba. Desaparece de las listas, la caja y el resumen.": "Per esborrar comandes de prova. Desapareix de les llistes, la caixa i el resum.",
+  "Para borrar pedidos de prueba. Desaparece de las listas, la caja y el resumen. Al borrar el último, la numeración vuelve a empezar por el #0001.": "Per esborrar comandes de prova. Desapareix de les llistes, la caixa i el resum. En esborrar l'última, la numeració torna a començar pel #0001.",
+  "Pedido {code} eliminado. Ya no queda ningún pedido: el próximo será el #0001.": "Comanda {code} eliminada. Ja no queda cap comanda: la propera serà la #0001.",
   "sin contar {n} cancelado(s)": "sense comptar {n} cancel·lada(es)",
 };

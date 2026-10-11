@@ -55,7 +55,7 @@
           data-confirm="<%= t('¿Eliminar el pedido {code} para siempre? No se puede deshacer.', { code: orderCode(order.id) }) %>">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <button class="btn small danger"><%= t('Eliminar pedido') %></button>
-      <p class="hint"><%= t('Para borrar pedidos de prueba. Desaparece de las listas, la caja y el resumen.') %></p>
+      <p class="hint"><%= t('Para borrar pedidos de prueba. Desaparece de las listas, la caja y el resumen. Al borrar el último, la numeración vuelve a empezar por el #0001.') %></p>
     </form>
   </section>
 </div>

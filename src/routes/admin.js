@@ -166,8 +166,15 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir }) {
   router.post('/pedidos/:id/eliminar', (req, res) => {
     const order = orders.getOrder(Number(req.params.id));
     if (!order) return res.redirect('/admin/pedidos');
-    db.prepare('DELETE FROM orders WHERE id = ?').run(order.id);
-    flash(req, 'ok', 'Pedido {code} eliminado.', { code: orderCode(order.id) });
+    const restarted = db.transaction(() => {
+      db.prepare('DELETE FROM orders WHERE id = ?').run(order.id);
+      // Sin pedidos (p. ej. tras borrar los de prueba), la numeración vuelve a empezar por el #0001.
+      if (db.prepare('SELECT 1 FROM orders LIMIT 1').get()) return false;
+      db.prepare("DELETE FROM sqlite_sequence WHERE name IN ('orders', 'order_items', 'order_events')").run();
+      return true;
+    })();
+    if (restarted) flash(req, 'ok', 'Pedido {code} eliminado. Ya no queda ningún pedido: el próximo será el #0001.', { code: orderCode(order.id) });
+    else flash(req, 'ok', 'Pedido {code} eliminado.', { code: orderCode(order.id) });
     res.redirect('/admin/pedidos');
   });
 
