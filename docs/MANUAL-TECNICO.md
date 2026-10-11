@@ -57,18 +57,19 @@ src/
   club-data.js     resumen de los equipos del CH Ripollet a partir de okCat360
   settings.js      textos editables de la web (incluidos los de Ripo)
   routes/          site.js (portada), auth.js (cuentas), shop.js (tienda), admin.js (panel)
-views/             plantillas EJS (partials/assistant.ejs = el chat)
+views/             plantillas EJS (partials/assistant.ejs = el chat; admin/manuals.ejs = sección Manuals)
 public/            CSS, JS del navegador (assistant.js = chat con voz), imágenes (pollet.svg, escut.gif)
 scripts/           import-catalog.js, catalogo-excel-a-json.py, club-data-worker.js, create-admin.js, seed-demo.js
 test/              pruebas automáticas (npm test)
 catalogo.json      catálogo inicial (generado desde el Excel) · img/ fotos y guías de tallas
-docs/              este manual
+docs/              este manual (MANUAL-TECNICO.md) y los PDF que se ven en Admin › Manuals:
+                   manual-tecnico.pdf, manual-comissio.pdf, manual-families.pdf
 ```
 
 ### 2.3 Funciones principales
 - **Familias**: crean su cuenta con nombre y apellidos + correo (contraseña en pantalla y por correo), compran, ven sus pedidos y su **QR único** (sirve para pagar y para recoger), cancelan mientras no esté pagado, recuperan contraseña por enlace.
 - **Tienda**: colores, modelos, tallas, personalización (obligatoria u opcional con «Sin personalizar»), guías de tallas, **packs automáticos** con la combinación que más ahorra y regalos.
-- **Comisión** (`/admin`): panel con totales y caja por persona, pedidos (filtros, marcar pagado/entregado, eliminar), escáner QR, aviso de recogida, resumen para el proveedor, CSV, productos, packs, periodos, clientes, textos de la web (incluidos los de Ripo), administradores y registro de correos.
+- **Comisión** (`/admin`): panel con totales, caja por persona y **uso de Ripo**, pedidos (filtros, marcar pagado/entregado, eliminar), escáner QR, aviso de recogida, resumen para el proveedor, CSV, productos, packs, periodos, clientes, textos de la web (incluidos los de Ripo), **Manuals** (los PDF de documentación), administradores y registro de correos.
 - **Ripo** (asistente IA): ver apartado 8.
 
 ---
@@ -216,8 +217,13 @@ La chuleta (`src/assistant.js` › `knowledge()` y `personal()`) contiene:
 
 Los bloques 1-7 se marcan como caché en la API (más barato).
 
-### 8.2 Protecciones
-- Límites diarios (30 por persona, 500 en total) guardados en la tabla `assistant_usage`.
+### 8.2 Protecciones y límites
+- Contador por día (hora de Madrid, se reinicia a medianoche) en la tabla `assistant_usage`:
+  - **con cuenta**: 30 preguntas por cuenta y día (`ASSISTANT_USER_DAILY_LIMIT`);
+  - **sin cuenta**: 30 por sesión del navegador **y** 90 por conexión/IP (el triple, porque una wifi la comparten muchas familias), para que no se pueda saltar abriendo una ventana de incógnito;
+  - **total**: 500 al día para toda la web (`ASSISTANT_DAILY_LIMIT`).
+  Al llegar al límite responde «Per avui ja he respost moltes preguntes…».
+- **Tauler › «Ripo, l'assistent»**: preguntas de hoy y de cuántas personas, quién ha preguntado más (con aviso si alguien ha llegado al límite) y total de los últimos días. El coste exacto, en la consola de Anthropic (*Usage*).
 - Si la API falla o no hay saldo: mensaje amable, sin romper nada.
 - No aparece en el panel de la comisión.
 
@@ -259,6 +265,10 @@ npm run import-catalog -- catalogo.json img
 
 **Cambiar lo que sabe Ripo**: *Admin › Textos de la web* (tono e información del club).
 
+**Vigilar el uso de Ripo**: *Tauler* (preguntas de hoy y de los últimos días) y consola de Anthropic (*Usage*, gasto). Si el límite se queda corto o largo, cambiar `ASSISTANT_USER_DAILY_LIMIT` en Railway.
+
+**Documentación**: *Admin › Manuals*. Si se cambia un manual, sustituir el PDF en `docs/` y subirlo con Git.
+
 **Si una familia no puede entrar**: «He oblidat la contrasenya» o *Clientes › ficha › Generar contraseña nueva*.
 
 **Renovaciones a vigilar**: clave de Anthropic (si caduca), saldo de Anthropic, plan de Railway, dominio en Nominalia.
@@ -280,12 +290,13 @@ npm run import-catalog -- catalogo.json img
 | Railway no verificaba el dominio | En el TXT se puso el nombre en vez del valor | Valor `"railway-verify=…"` |
 | No se puede añadir otro dominio en Railway | Límite de 1 dominio del plan | Borrar el anterior o pasar a Hobby |
 | El pollito no aparecía | La publicación aún no había terminado / caché | Esperar el deploy y recargar con Ctrl+F5 |
+| Más de 30 preguntas a Ripo sin límite | Sin cuenta se contaba solo por sesión (incógnito = de cero) | Ahora también por conexión/IP |
 
 ---
 
 ## 12. Pruebas
 
-- `npm test`: pruebas automáticas del flujo completo (cuentas, pedidos, packs, QR, correos con Brevo simulado, Ripo con IA simulada, datos de partidos, traducciones…). Deben pasar todas antes de cada `git push`.
+- `npm test`: 23 pruebas automáticas del flujo completo (cuentas, pedidos, packs, QR, correos con Brevo simulado, Ripo con IA simulada y sus límites, datos de partidos, manuales solo para la comisión, redirección de dominios, traducciones…). Deben pasar todas antes de cada `git push`.
 - En octubre de 2026 se hizo además una batería E2E contra una copia aislada (205 comprobaciones: compras con y sin packs, totales del panel/caja/resumen/CSV, cobro y entrega, cancelaciones, seguridad entre clientes). Informe publicado como artefacto «Pruebas de la botiga».
 
 ---
@@ -310,3 +321,4 @@ npm run import-catalog -- catalogo.json img
 | 10-11/10/2026 | Pruebas E2E y correcciones; dominio propio y DNS en Nominalia; Brevo autenticado |
 | 11/10/2026 | Ripo: asistente con Claude Haiku 5.5, información del club, partidos (okCat360), voz, tono editable, guías de tallas |
 | 11/10/2026 | Cambio de dominio a `comissioevents.clubhoqueiripollet.com` |
+| 11/10/2026 | El asistente pasa a llamarse **Ripo**; información de la web del club; manual técnico y sección Manuals; límite por conexión y uso de Ripo en el Tauler |
