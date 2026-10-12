@@ -58,7 +58,7 @@ src/
   settings.js      textos editables de la web (incluidos los de Ripo)
   routes/          site.js (portada), auth.js (cuentas), shop.js (tienda), admin.js (panel)
 views/             plantillas EJS (partials/assistant.ejs = el chat; admin/manuals.ejs = sección Manuals)
-public/            CSS, JS del navegador (assistant.js = chat con voz), imágenes (pollet.svg, escut.gif)
+public/            CSS, JS del navegador (assistant.js = chat con voz), imágenes (pollet.png, ripo-ripo.png, escut.gif)
 scripts/           import-catalog.js, catalogo-excel-a-json.py, club-data-worker.js, create-admin.js, seed-demo.js
 test/              pruebas automáticas (npm test)
 catalogo.json      catálogo inicial (generado desde el Excel) · img/ fotos y guías de tallas

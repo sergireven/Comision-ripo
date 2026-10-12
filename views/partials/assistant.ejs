@@ -5,12 +5,12 @@
      data-refusal="<%= t('Eso no te lo puedo responder. Pregunta a la comisión, por favor.') %>"
      data-thinking="<%= t('Pensando…') %>" data-listening="<%= t('Te escucho…') %>" data-link="<%= t('el enlace') %>">
   <button type="button" class="pollet-fab" data-pollet-open aria-label="<%= t('Pregunta a Ripo') %>" aria-expanded="false">
-    <img src="/static/img/pollet.svg" alt="" width="44" height="44">
+    <img src="/static/img/pollet.png?v=<%= assetVersion %>" alt="" width="44" height="44">
     <span class="pollet-fab-label"><%= t('¿Dudas?') %></span>
   </button>
   <section class="pollet-panel" data-pollet-panel hidden aria-label="<%= t('Ripo, el asistente del CH Ripollet') %>">
     <header class="pollet-head">
-      <img src="/static/img/pollet.svg" alt="" width="36" height="36">
+      <img src="/static/img/pollet.png?v=<%= assetVersion %>" alt="" width="36" height="36">
       <div><strong>Ripo</strong><br><span class="small"><%= t('El asistente del CH Ripollet') %></span></div>
       <button type="button" class="pollet-voice" data-pollet-voice hidden aria-pressed="false" aria-label="<%= t('Leer las respuestas en voz alta') %>" title="<%= t('Leer las respuestas en voz alta') %>">🔇</button>
       <button type="button" class="pollet-close" data-pollet-close aria-label="<%= t('Cerrar') %>">×</button>
