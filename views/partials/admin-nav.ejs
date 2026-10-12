@@ -1,0 +1,68 @@
+<%# Navegación de la comisión: barra lateral agrupada en el ordenador y, en el móvil, barra inferior
+    (Panel · Pedidos · Escanear · Clientes · Más) con el mismo menú en un panel que sube desde abajo. %>
+<% const icons = {
+     panel: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+     scan: '<path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M7 12h10"/>',
+     orders: '<path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/>',
+     summary: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+     clients: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/>',
+     products: '<path d="M8 3 3 6l2 5 3-1v11h8V10l3 1 2-5-5-3a4 4 0 0 1-8 0z"/>',
+     packs: '<path d="m21 8-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>',
+     periods: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+     texts: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m14 6 4 4"/>',
+     admins: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m9 12 2 2 4-4"/>',
+     emails: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+     manuals: '<path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"/>',
+     account: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+     more: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+     close: '<path d="M6 6l12 12M18 6 6 18"/>',
+   };
+   const icon = (name) => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${icons[name]}</svg>`;
+   const is = (...prefixes) => prefixes.some((p) => path === p || path.startsWith(p + '/'));
+   const isPanel = path === '/admin' || path === '/admin/';
+   const groups = [
+     { title: 'Ventas', items: [
+       { href: '/admin', label: 'Panel', icon: 'panel', active: isPanel },
+       { href: '/admin/escanear', label: 'Escanear', icon: 'scan', active: is('/admin/escanear', '/admin/qr') },
+       { href: '/admin/pedidos', label: 'Pedidos', icon: 'orders', active: is('/admin/pedidos') },
+       { href: '/admin/resumen', label: 'Resumen', icon: 'summary', active: is('/admin/resumen') },
+       { href: '/admin/clientes', label: 'Clientes', icon: 'clients', active: is('/admin/clientes') },
+     ] },
+     { title: 'Tienda', items: [
+       { href: '/admin/productos', label: 'Productos', icon: 'products', active: is('/admin/productos', '/admin/categorias') },
+       { href: '/admin/packs', label: 'Packs', icon: 'packs', active: is('/admin/packs') },
+       { href: '/admin/periodos', label: 'Periodos', icon: 'periods', active: is('/admin/periodos') },
+     ] },
+     { title: 'Configuración', items: [
+       { href: '/admin/web', label: 'Textos de la web', icon: 'texts', active: is('/admin/web') },
+       { href: '/admin/admins', label: 'Administradores', icon: 'admins', active: is('/admin/admins') },
+       { href: '/admin/emails', label: 'Correos enviados', icon: 'emails', active: is('/admin/emails') },
+       { href: '/admin/manuales', label: 'Manuales', icon: 'manuals', active: is('/admin/manuales') },
+       { href: '/cuenta', label: 'Mi cuenta', icon: 'account', active: is('/cuenta') },
+     ] },
+   ];
+   const inMore = groups.flatMap((g) => g.items).some((i) => i.active) && !isPanel
+     && !is('/admin/pedidos', '/admin/escanear', '/admin/qr', '/admin/clientes'); %>
+<input type="checkbox" id="admin-more" class="admin-more-toggle" aria-hidden="true" tabindex="-1">
+<aside class="sidenav" aria-label="<%= t('Panel de la comisión') %>">
+  <div class="sidenav-head">
+    <strong><%= t('Panel de la comisión') %></strong>
+    <label for="admin-more" class="sidenav-close" title="<%= t('Cerrar') %>"><%- icon('close') %><span class="sr-only"><%= t('Cerrar') %></span></label>
+  </div>
+  <% groups.forEach(g => { %>
+    <div class="sidenav-group">
+      <div class="sidenav-title"><%= t(g.title) %></div>
+      <% g.items.forEach(i => { %>
+        <a href="<%= i.href %>" class="<%= i.active ? 'active' : '' %>"<% if (i.active) { %> aria-current="page"<% } %>><%- icon(i.icon) %><span><%= t(i.label) %></span></a>
+      <% }) %>
+    </div>
+  <% }) %>
+</aside>
+<label for="admin-more" class="sidenav-backdrop" aria-hidden="true"></label>
+<nav class="tabbar" aria-label="<%= t('Accesos rápidos') %>">
+  <a href="/admin" class="<%= isPanel ? 'active' : '' %>"><%- icon('panel') %><span><%= t('Panel') %></span></a>
+  <a href="/admin/pedidos" class="<%= is('/admin/pedidos') ? 'active' : '' %>"><%- icon('orders') %><span><%= t('Pedidos') %></span></a>
+  <a href="/admin/escanear" class="tabbar-scan <%= is('/admin/escanear', '/admin/qr') ? 'active' : '' %>"><%- icon('scan') %><span><%= t('Escanear') %></span></a>
+  <a href="/admin/clientes" class="<%= is('/admin/clientes') ? 'active' : '' %>"><%- icon('clients') %><span><%= t('Clientes') %></span></a>
+  <label for="admin-more" role="button" class="<%= inMore ? 'active' : '' %>"><%- icon('more') %><span><%= t('Más') %></span></label>
+</nav>

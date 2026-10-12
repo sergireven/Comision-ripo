@@ -12,6 +12,7 @@
     </div>
   </div>
 </footer>
+<% if (user && user.role === 'admin') { %></div></div><% } %>
 <% if (assistantEnabled && !path.startsWith('/admin')) { %><%- include('assistant') %><% } %>
 <script src="/static/js/app.js?v=<%= assetVersion %>"></script>
 </body>

@@ -732,4 +732,8 @@ module.exports = {
   "Últimos días": "Darrers dies",
   "{n} pregunta(s)": "{n} pregunta(es)",
   "El coste exacto se ve en la consola de Anthropic (Usage).": "El cost exacte es veu a la consola d'Anthropic (Usage).",
+  "Ventas": "Vendes",
+  "Configuración": "Configuració",
+  "Más": "Més",
+  "Accesos rápidos": "Accessos ràpids",
 };
