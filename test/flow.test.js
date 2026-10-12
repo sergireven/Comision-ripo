@@ -672,6 +672,7 @@ test('Pollet, el asistente: oculto sin clave; responde con el catálogo y los pe
   assert.match(sys, /Personalidad y tono\n.*Ripo Ripo/, 'tono editable con el coloquial por defecto');
   assert.match(sys, /aixecar i picar/, 'personalidad de Ripo: jugada favorita');
   assert.match(sys, /ni chico ni chica/, 'Ripo no tiene género');
+  assert.match(sys, /t'arribarà/, 'reglas de ortografía catalana');
 
   // Conversación mal formada
   res = await anon.post('/asistente').send({ _csrf, messages: [{ role: 'assistant', content: 'x' }] });
