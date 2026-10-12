@@ -98,6 +98,8 @@ function slugify(text) {
 const STATUS = {
   pendiente_pago: { label: 'Pendiente de pago', css: 'warn' },
   pendiente_entrega: { label: 'Pagado · pendiente de entrega', css: 'info' },
+  // No es un estado guardado: es un pedido «pendiente_entrega» con parte del material ya entregado (orders.partial_at).
+  entrega_parcial: { label: 'Entregado parcialmente', css: 'partial' },
   entregado: { label: 'Entregado', css: 'ok' },
   cancelado: { label: 'Cancelado', css: 'muted' },
 };

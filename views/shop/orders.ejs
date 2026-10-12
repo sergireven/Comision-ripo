@@ -11,7 +11,7 @@
     <a class="card order-row" href="/pedidos/<%= o.id %>">
       <div><strong><%= t('Pedido {code}', { code: orderCode(o.id) }) %></strong><br><span class="muted small"><%= formatDate(o.created_at) %> · <%= t('{n} artículo(s)', { n: o.units }) %></span>
         <% if (o.status === 'pendiente_entrega' && o.ready_at) { %><br><span class="badge ok"><%= t('¡Listo para recoger!') %></span><% } %></div>
-      <div class="right"><%- include('../partials/status', { status: o.status }) %><br><strong><%= formatMoney(o.total_cents) %></strong></div>
+      <div class="right"><%- include('../partials/status', { status: o.status, partial: o.partial_at }) %><br><strong><%= formatMoney(o.total_cents) %></strong></div>
     </a>
   <% }) %>
   </div>

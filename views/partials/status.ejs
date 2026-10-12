@@ -1,1 +1,3 @@
-<span class="badge <%= STATUS[status].css %>"><%= statusLabel(status) %></span>
+<%# Con partial (orders.partial_at), un pedido pendiente de entrega se muestra como «Entregado parcialmente». %>
+<% const shown = typeof partial !== 'undefined' && partial && status === 'pendiente_entrega' ? 'entrega_parcial' : status; %>
+<span class="badge <%= STATUS[shown].css %>"><%= statusLabel(shown) %></span>

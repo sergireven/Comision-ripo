@@ -142,8 +142,8 @@ function createAssistant(db, { client, env = process.env } = {}) {
     const list = db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY id DESC LIMIT 10').all(user.id);
     const ordersText = list.map((o) => {
       const items = orders.orderItems(o.id).filter((i) => i.kind === 'product')
-        .map((i) => `${i.quantity}× ${i.product_name}${[i.color, i.option_value, i.size && `talla ${i.size}`, i.custom_name && `«${i.custom_name}» ${i.custom_number}`, i.no_custom && 'sin personalizar'].filter(Boolean).map((x) => ` ${x}`).join(',')}`);
-      return `- ${orderCode(o.id)} (${madridDate(o.created_at)}): ${STATUS[o.status].label.toUpperCase()}, total ${formatMoney(o.total_cents)}${o.ready_at && o.status === 'pendiente_entrega' ? ', ya avisado para recoger' : ''}. ${items.join('; ')}`;
+        .map((i) => `${i.quantity}× ${i.product_name}${o.partial_at && o.status === 'pendiente_entrega' ? (i.delivered_qty >= i.quantity ? ' [entregado]' : ` [falta ${i.quantity - i.delivered_qty}]`) : ''}${[i.color, i.option_value, i.size && `talla ${i.size}`, i.custom_name && `«${i.custom_name}» ${i.custom_number}`, i.no_custom && 'sin personalizar'].filter(Boolean).map((x) => ` ${x}`).join(',')}`);
+      return `- ${orderCode(o.id)} (${madridDate(o.created_at)}): ${(o.partial_at && o.status === 'pendiente_entrega' ? STATUS.entrega_parcial : STATUS[o.status]).label.toUpperCase()}, total ${formatMoney(o.total_cents)}${o.ready_at && o.status === 'pendiente_entrega' ? ', ya avisado para recoger' : ''}. ${items.join('; ')}`;
     });
     const cart = orders.cart(user.id);
     out.push(`# Datos de la persona\nNombre: ${user.player_name || '(sin nombre)'}. Correo: ${user.email}.`);

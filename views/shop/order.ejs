@@ -2,8 +2,9 @@
 <p><a href="/pedidos">← <%= t('Mis pedidos') %></a></p>
 <div class="page-head">
   <h1><%= t('Pedido {code}', { code: orderCode(order.id) }) %></h1>
-  <%- include('../partials/status', { status: order.status }) %>
+  <%- include('../partials/status', { status: order.status, partial: order.partial_at }) %>
 </div>
+<% const showDelivery = !!order.partial_at && order.status === 'pendiente_entrega'; %>
 
 <% if (order.status === 'pendiente_pago') { %>
   <div class="card qr-card center pay">
@@ -19,7 +20,9 @@
 <% } else if (order.status === 'pendiente_entrega') { %>
   <div class="card qr-card center pickup">
     <span class="qr-kind"><%= t('QR del pedido') %></span>
-    <% if (order.ready_at) { %>
+    <% if (showDelivery) { %>
+      <div class="flash info"><strong><%= t('Ya te hemos entregado una parte.') %></strong> <%= t('Abajo verás qué falta. Te avisaremos cuando llegue; para recogerlo, enseña este mismo QR.') %></div>
+    <% } else if (order.ready_at) { %>
       <div class="flash ok"><strong><%= t('¡Listo para recoger!') %></strong> <%= t('Enseña este QR a la comisión cuando vengas a buscarlo.') %></div>
     <% } else { %>
       <p><strong><%= t('Pagado ✔') %></strong> <%= t('Te avisaremos por correo cuando el material haya llegado. Para recogerlo, enseña este mismo QR.') %></p>
@@ -32,18 +35,19 @@
 
 <div class="card table-wrap">
   <table class="table stack">
-    <thead><tr><th><%= t('Producto') %></th><th><%= t('Detalles') %></th><th><%= t('Cant.') %></th><th class="num"><%= t('Importe') %></th></tr></thead>
+    <thead><tr><th><%= t('Producto') %></th><th><%= t('Detalles') %></th><th><%= t('Cant.') %></th><% if (showDelivery) { %><th><%= t('Entrega') %></th><% } %><th class="num"><%= t('Importe') %></th></tr></thead>
     <tbody>
     <% items.forEach(it => { %>
       <tr>
         <td><%- include('../partials/line-name', { it }) %><% if (it.kind === 'product') { %><br><span class="muted small"><%= formatMoney(it.unit_price_cents) %>/<%= t('u.') %></span><% } %></td>
         <td class="small" data-label="<%= t('Detalles') %>"><%- include('../partials/items', { it }) %></td>
         <td data-label="<%= t('Cantidad') %>"><%= it.quantity %></td>
+        <% if (showDelivery) { %><td data-label="<%= t('Entrega') %>"><% if (it.kind === 'pack') { %><% } else if (order.status === 'entregado' || it.delivered_qty >= it.quantity) { %><span class="delivered-yes">✔ <%= t('Ya entregado') %></span><% } else if (it.delivered_qty > 0) { %><span class="delivered-part"><%= t('{n} de {total}', { n: it.delivered_qty, total: it.quantity }) %></span><% } else { %><span class="delivered-no"><%= t('Falta') %></span><% } %></td><% } %>
         <td class="num" data-label="<%= t('Importe') %>"><%= formatMoney(it.unit_price_cents * it.quantity) %></td>
       </tr>
     <% }) %>
     </tbody>
-    <tfoot><tr><th colspan="3"><%= t('Total') %></th><th class="num"><%= formatMoney(order.total_cents) %></th></tr></tfoot>
+    <tfoot><tr><th colspan="<%= showDelivery ? 4 : 3 %>"><%= t('Total') %></th><th class="num"><%= formatMoney(order.total_cents) %></th></tr></tfoot>
   </table>
 </div>
 

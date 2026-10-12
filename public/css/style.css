@@ -109,6 +109,15 @@ label.check { font-weight: 400; display: flex; align-items: center; }
 .badge.warn { background: var(--warn-bg); color: var(--warn); }
 .badge.info { background: var(--info-bg); color: var(--info); }
 .badge.muted { background: #eceff3; color: var(--muted); }
+.badge.partial { background: #fde9d9; color: #a3410d; }
+.delivered-yes { color: var(--ok); font-weight: 600; white-space: nowrap; }
+.delivered-part { color: #a3410d; font-weight: 600; white-space: nowrap; }
+.delivered-no { color: var(--danger); font-weight: 600; white-space: nowrap; }
+.partial-list { list-style: none; margin: 0 0 14px; padding: 0; }
+.partial-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.partial-check { display: flex; align-items: center; gap: 8px; font-weight: 600; white-space: nowrap; }
+.partial-check input[type=checkbox] { width: 22px; height: 22px; }
+.partial-check select { width: auto; }
 
 /* Login */
 .auth { padding-top: 24px; }

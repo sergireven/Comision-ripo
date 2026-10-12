@@ -2,8 +2,10 @@
 <p><a href="/admin/pedidos">← <%= t('Pedidos') %></a></p>
 <div class="page-head">
   <h1><%= t('Pedido {code}', { code: orderCode(order.id) }) %></h1>
-  <%- include('../partials/status', { status: order.status }) %>
+  <%- include('../partials/status', { status: order.status, partial: order.partial_at }) %>
 </div>
+<% const showDelivery = !!order.partial_at && ['pendiente_entrega', 'entregado'].includes(order.status);
+   const physical = items.filter((i) => i.kind !== 'pack'); %>
 
 <div class="grid two">
   <section class="card">
@@ -34,6 +36,7 @@
         <button class="btn primary block big">✔ <%= t('Marcar entregado') %></button>
         <p class="hint"><%= t('También puedes escanear el QR del pedido.') %></p>
       </form>
+      <a class="btn block" href="#entrega-parcial"><%= t('Entrega parcial…') %></a>
     <% } %>
 
     <% const other = transitions.filter(s => !(order.status === 'pendiente_pago' && s === 'pendiente_entrega') && s !== 'entregado'); %>
@@ -62,16 +65,39 @@
 
 <div class="card table-wrap">
   <table class="table">
-    <thead><tr><th><%= t('Producto') %></th><th><%= t('Talla') %></th><th><%= t('Nombre jugador') %></th><th><%= t('Dorsal') %></th><th><%= t('Cant.') %></th><th class="num"><%= t('Importe') %></th></tr></thead>
+    <thead><tr><th><%= t('Producto') %></th><th><%= t('Talla') %></th><th><%= t('Nombre jugador') %></th><th><%= t('Dorsal') %></th><th><%= t('Cant.') %></th><% if (showDelivery) { %><th><%= t('Entrega') %></th><% } %><th class="num"><%= t('Importe') %></th></tr></thead>
     <tbody>
     <% items.forEach(it => { %>
       <tr><td><%- include('../partials/line-name', { it }) %><% if (it.color || it.option_value) { %><br><span class="muted small"><%= [it.color, it.option_value].filter(Boolean).join(' · ') %></span><% } %></td><td><%= it.size || '—' %></td><td><%= it.custom_name || (it.no_custom ? t('Sin personalizar') : '—') %></td><td><%= it.custom_number || '—' %></td>
-        <td><%= it.quantity %></td><td class="num"><%= formatMoney(it.unit_price_cents * it.quantity) %></td></tr>
+        <td><%= it.quantity %></td><% if (showDelivery) { %><td data-label="<%= t('Entrega') %>"><% if (it.kind === 'pack') { %><% } else if (order.status === 'entregado' || it.delivered_qty >= it.quantity) { %><span class="delivered-yes">✔ <%= t('Ya entregado') %></span><% } else if (it.delivered_qty > 0) { %><span class="delivered-part"><%= t('{n} de {total}', { n: it.delivered_qty, total: it.quantity }) %></span><% } else { %><span class="delivered-no"><%= t('Falta') %></span><% } %></td><% } %><td class="num"><%= formatMoney(it.unit_price_cents * it.quantity) %></td></tr>
     <% }) %>
     </tbody>
-    <tfoot><tr><th colspan="5"><%= t('Total') %></th><th class="num"><%= formatMoney(order.total_cents) %></th></tr></tfoot>
+    <tfoot><tr><th colspan="<%= showDelivery ? 6 : 5 %>"><%= t('Total') %></th><th class="num"><%= formatMoney(order.total_cents) %></th></tr></tfoot>
   </table>
 </div>
+
+<% if (order.status === 'pendiente_entrega') { %>
+<form method="post" action="/admin/pedidos/<%= order.id %>/parcial" class="card form" id="entrega-parcial">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <h2><%= t('Entrega parcial') %></h2>
+  <p class="hint"><%= t('Solo si falta material: marca lo que se entrega ahora. El pedido quedará como «Entregado parcialmente» y cuando llegue el resto se escanea el QR como siempre.') %></p>
+  <ul class="partial-list">
+    <% physical.forEach(it => { %>
+      <li>
+        <span><%- include('../partials/line-name', { it }) %><br><span class="muted small"><%- include('../partials/items', { it }) %></span></span>
+        <% if (it.quantity === 1) { %>
+          <label class="partial-check"><input type="hidden" name="qty_<%= it.id %>" value="0"><input type="checkbox" name="qty_<%= it.id %>" value="1" <%= it.delivered_qty >= 1 ? 'checked' : '' %>> <%= t('Ya entregado') %></label>
+        <% } else { %>
+          <label class="partial-check"><%= t('Entregadas') %>
+            <select name="qty_<%= it.id %>"><% for (let n = 0; n <= it.quantity; n++) { %><option value="<%= n %>" <%= it.delivered_qty === n ? 'selected' : '' %>><%= n %></option><% } %></select>
+            <%= t('de {total}', { total: it.quantity }) %></label>
+        <% } %>
+      </li>
+    <% }) %>
+  </ul>
+  <button class="btn primary"><%= t('Guardar entrega parcial') %></button>
+</form>
+<% } %>
 
 <div class="card">
   <h2><%= t('Historial') %></h2>

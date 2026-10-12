@@ -195,6 +195,9 @@ const COLUMNS = [
   // 1 = la familia ha elegido expresamente «Sin personalizar» (productos con personalización opcional)
   ['cart_items', 'no_custom', 'INTEGER NOT NULL DEFAULT 0'],
   ['order_items', 'no_custom', 'INTEGER NOT NULL DEFAULT 0'],
+  // Entrega parcial (manual, desde el pedido): unidades ya entregadas de cada línea y cuándo se marcó.
+  ['order_items', 'delivered_qty', 'INTEGER NOT NULL DEFAULT 0'],
+  ['orders', 'partial_at', 'TEXT'],
 ];
 
 function migrate(db) {

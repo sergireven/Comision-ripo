@@ -233,19 +233,57 @@ function createOrderService(db) {
     } else if (newStatus === 'pendiente_entrega') { // deshacer entrega
       db.prepare('UPDATE orders SET status = ?, delivered_at = NULL, delivered_by = NULL WHERE id = ?').run(newStatus, orderId);
     } else if (newStatus === 'pendiente_pago') { // deshacer cobro o reactivar cancelado
-      db.prepare(`UPDATE orders SET status = ?, paid_at = NULL, paid_by = NULL, ready_at = NULL, cancelled_at = NULL
+      db.prepare(`UPDATE orders SET status = ?, paid_at = NULL, paid_by = NULL, ready_at = NULL, cancelled_at = NULL, partial_at = NULL
         WHERE id = ?`).run(newStatus, orderId);
+      db.prepare('UPDATE order_items SET delivered_qty = 0 WHERE order_id = ?').run(orderId);
     } else if (newStatus === 'entregado') {
       db.prepare('UPDATE orders SET status = ?, delivered_at = ?, delivered_by = ? WHERE id = ?').run(newStatus, now, actorId, orderId);
     } else if (newStatus === 'cancelado') {
-      db.prepare('UPDATE orders SET status = ?, cancelled_at = ? WHERE id = ?').run(newStatus, now, orderId);
+      db.prepare('UPDATE orders SET status = ?, cancelled_at = ?, partial_at = NULL WHERE id = ?').run(newStatus, now, orderId);
+      db.prepare('UPDATE order_items SET delivered_qty = 0 WHERE order_id = ?').run(orderId);
     }
     db.prepare('INSERT INTO order_events (order_id, status, note, actor_id) VALUES (?, ?, ?, ?)')
       .run(orderId, newStatus, note, actorId);
     return { order: getOrder(orderId) };
   });
 
-  return { cart, activePacks, addToCart, addPackToCart, validateLine, placeOrder, getOrder, findByToken, orderItems, orderEvents, changeStatus };
+  /**
+   * Entrega parcial (solo a mano, desde el pedido): guarda cuántas unidades de cada línea se han entregado.
+   * delivered = { [itemId]: unidades }. Si ya está todo, el pedido pasa a «Entregado»; si no queda nada entregado,
+   * vuelve a «Pagado · pendiente de entrega». Devuelve { order, complete } o { error }.
+   */
+  const registerPartial = db.transaction((orderId, delivered, actorId) => {
+    const order = getOrder(orderId);
+    if (!order) return { error: 'Pedido no encontrado.' };
+    if (order.status !== 'pendiente_entrega') return { error: 'Solo se puede entregar en parte un pedido pagado y pendiente de entrega.' };
+    const items = orderItems(orderId).filter((i) => i.kind !== 'pack');
+    const set = db.prepare('UPDATE order_items SET delivered_qty = ? WHERE id = ?');
+    let given = 0;
+    const missing = [];
+    for (const it of items) {
+      const n = Math.max(0, Math.min(it.quantity, Math.floor(Number(delivered[it.id]) || 0)));
+      set.run(n, it.id);
+      given += n;
+      if (n < it.quantity) missing.push(`${it.quantity - n}× ${it.product_name_ca || it.product_name}${it.size ? ` (${it.size})` : ''}${it.custom_name ? ` «${it.custom_name}»` : ''}`);
+    }
+    if (!missing.length) {
+      const res = changeStatus(orderId, 'entregado', actorId, 'Entregado sin QR');
+      return res.error ? res : { order: res.order, complete: true };
+    }
+    if (!given) {
+      if (!order.partial_at) return { order };
+      db.prepare('UPDATE orders SET partial_at = NULL WHERE id = ?').run(orderId);
+      db.prepare('INSERT INTO order_events (order_id, status, note, actor_id) VALUES (?, ?, ?, ?)')
+        .run(orderId, 'pendiente_entrega', 'Entrega parcial deshecha', actorId);
+      return { order: getOrder(orderId) };
+    }
+    db.prepare('UPDATE orders SET partial_at = ? WHERE id = ?').run(new Date().toISOString(), orderId);
+    db.prepare('INSERT INTO order_events (order_id, status, note, actor_id) VALUES (?, ?, ?, ?)')
+      .run(orderId, 'entrega_parcial', `Falta: ${missing.join(', ')}`, actorId);
+    return { order: getOrder(orderId) };
+  });
+
+  return { cart, activePacks, addToCart, addPackToCart, validateLine, placeOrder, getOrder, findByToken, orderItems, orderEvents, changeStatus, registerPartial };
 }
 
 module.exports = { shopStatus, createOrderService, TRANSITIONS };

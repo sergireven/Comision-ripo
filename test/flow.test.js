@@ -796,3 +796,55 @@ test('Ripo: límite por conexión para quien no ha entrado y uso visible en el p
   assert.match(res.text, /Ripo, l(&#39;|')assistent|Ripo, el asistente/);
   assert.match(res.text, /(Avui|Hoy): 1 pregunta/);
 });
+
+test('entrega parcial a mano: marca lo entregado, muestra lo que falta y el QR entrega el resto', async () => {
+  const { db, app } = setup();
+  db.prepare("INSERT INTO products (name, price_cents) VALUES ('Bufanda', 1000), ('Gorra', 800)").run();
+  openPeriod(db);
+  const fam = request.agent(app);
+  await login(fam, 'laia@example.com', 'clave-familia');
+  const _csrf = await csrfOf(fam, '/tienda');
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: 1, quantity: 2 });
+  await fam.post('/carrito/anadir').type('form').send({ _csrf, product_id: 2, quantity: 1 });
+  await fam.post('/carrito/confirmar').type('form').send({ _csrf });
+  const [bufanda, gorra] = db.prepare('SELECT id FROM order_items ORDER BY id').all();
+
+  const adm = request.agent(app);
+  await login(adm, 'comision', 'admin-password');
+  const c = await csrfOf(adm, '/admin/pedidos');
+  // Sin pagar no se puede entregar en parte
+  await adm.post('/admin/pedidos/1/parcial').type('form').send({ _csrf: c, [`qty_${bufanda.id}`]: 1 });
+  assert.strictEqual(db.prepare('SELECT partial_at FROM orders').get().partial_at, null);
+  await adm.post('/admin/pedidos/1/estado').type('form').send({ _csrf: c, status: 'pendiente_entrega' });
+  let res = await adm.get('/admin/pedidos/1');
+  assert.match(res.text, /id="entrega-parcial"/);
+
+  // Entrega 1 de 2 bufandas y la gorra no (checkbox sin marcar: solo llega el hidden 0)
+  await adm.post('/admin/pedidos/1/parcial').type('form').send(`_csrf=${encodeURIComponent(c)}&qty_${bufanda.id}=1&qty_${gorra.id}=0`);
+  let order = db.prepare('SELECT * FROM orders').get();
+  assert.strictEqual(order.status, 'pendiente_entrega', 'sigue pendiente: el estado guardado no cambia');
+  assert.ok(order.partial_at);
+  assert.match(db.prepare("SELECT note FROM order_events WHERE status = 'entrega_parcial'").get().note, /Falta: 1× Bufanda, 1× Gorra/);
+  res = await adm.get('/admin/pedidos/1');
+  assert.match(res.text, /Lliurada parcialment|Entregado parcialmente/);
+  assert.match(res.text, /1 de 2/);
+  assert.match(res.text, /delivered-no/);
+  res = await adm.get('/admin/pedidos?estado=entrega_parcial');
+  assert.match(res.text, /#0001/, 'filtro «Entregado parcialmente»');
+  res = await fam.get('/pedidos/1');
+  assert.match(res.text, /Ja t(&#39;|')hem entregat una part|Ya te hemos entregado una parte/, 'la familia ve que falta material');
+  res = await adm.get(`/admin/qr/${order.pay_token}`);
+  assert.match(res.text, /delivered-part/, 'al escanear se ve lo que falta');
+
+  // Llega el resto: el QR lo deja entregado, como siempre
+  await adm.post(`/admin/qr/${order.pay_token}/entregar`).type('form').send({ _csrf: c });
+  order = db.prepare('SELECT * FROM orders').get();
+  assert.strictEqual(order.status, 'entregado');
+  res = await adm.get('/admin/pedidos/1');
+  assert.doesNotMatch(res.text, /id="entrega-parcial"/);
+
+  // Si se marca todo a mano, queda entregado directamente
+  await adm.post('/admin/pedidos/1/estado').type('form').send({ _csrf: c, status: 'pendiente_entrega' });
+  await adm.post('/admin/pedidos/1/parcial').type('form').send(`_csrf=${encodeURIComponent(c)}&qty_${bufanda.id}=2&qty_${gorra.id}=0&qty_${gorra.id}=1`);
+  assert.strictEqual(db.prepare('SELECT status FROM orders').get().status, 'entregado');
+});

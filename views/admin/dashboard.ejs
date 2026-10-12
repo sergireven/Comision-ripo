@@ -56,7 +56,7 @@
     <ul class="plain">
       <% recent.forEach(o => { %>
         <li><a href="/admin/pedidos/<%= o.id %>"><%= orderCode(o.id) %> · <%= customerLabel(o) %></a>
-          <span class="right"><%= formatMoney(o.total_cents) %> <%- include('../partials/status', { status: o.status }) %></span></li>
+          <span class="right"><%= formatMoney(o.total_cents) %> <%- include('../partials/status', { status: o.status, partial: o.partial_at }) %></span></li>
       <% }) %>
     </ul>
     <p><a class="btn" href="/admin/resumen"><%= t('Resumen para el proveedor') %></a></p>

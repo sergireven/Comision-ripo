@@ -48,7 +48,7 @@
         <td class="small"><%= formatDate(o.created_at) %></td>
         <td><%= o.units %></td>
         <td class="num"><%= formatMoney(o.total_cents) %></td>
-        <td><%- include('../partials/status', { status: o.status }) %><% if (o.status === 'pendiente_entrega' && o.ready_at) { %><br><span class="small muted"><%= t('avisado') %></span><% } %></td>
+        <td><%- include('../partials/status', { status: o.status, partial: o.partial_at }) %><% if (o.status === 'pendiente_entrega' && o.ready_at) { %><br><span class="small muted"><%= t('avisado') %></span><% } %></td>
         <td>
           <% if (o.status === 'pendiente_pago') { %>
             <form method="post" action="/admin/pedidos/<%= o.id %>/estado" data-confirm="<%= t('¿Has cobrado {amount} de {name}?', { amount: formatMoney(o.total_cents), name: customerLabel(o) }) %>">

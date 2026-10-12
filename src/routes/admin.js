@@ -12,7 +12,7 @@ const {
   instagramUrl, customerLabel, readFullName,
 } = require('../util');
 
-const STATUSES = Object.keys(STATUS);
+const STATUSES = Object.keys(STATUS).filter((s) => s !== 'entrega_parcial'); // estados guardados en la base de datos
 
 module.exports = function adminRoutes({ db, mailer, orders, uploadDir, assistant }) {
   const router = express.Router();
@@ -68,6 +68,7 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir, assistant
     const where = [];
     const params = [];
     if (STATUSES.includes(query.estado)) { where.push('o.status = ?'); params.push(query.estado); }
+    if (query.estado === 'entrega_parcial') where.push("o.status = 'pendiente_entrega' AND o.partial_at IS NOT NULL");
     if (query.periodo) { where.push('o.period_id = ?'); params.push(Number(query.periodo)); }
     if (query.q) {
       const q = `%${String(query.q).trim()}%`;
@@ -161,6 +162,25 @@ module.exports = function adminRoutes({ db, mailer, orders, uploadDir, assistant
       } catch { /* sin referer válido */ }
     }
     res.redirect(back);
+  });
+
+  // Entrega parcial: la comisión marca a mano lo que se ha entregado. El QR sigue igual (al escanearlo se entrega todo).
+  router.post('/pedidos/:id/parcial', (req, res) => {
+    const order = orders.getOrder(Number(req.params.id));
+    if (!order) return res.status(404).render('error', { title: 'No encontrado', message: 'Ese pedido no existe.' });
+    const delivered = {};
+    for (const [k, v] of Object.entries(req.body || {})) {
+      const m = /^qty_(\d+)$/.exec(k);
+      if (m) delivered[m[1]] = Array.isArray(v) ? v[v.length - 1] : v;
+    }
+    const result = orders.registerPartial(order.id, delivered, req.user.id);
+    if (result.error) flash(req, 'error', result.error);
+    else if (result.complete) {
+      mailer.statusChanged(userOf(order), result.order, req.appUrl, collectorName(req.user));
+      flash(req, 'ok', 'Pedido {code}: {status}.', { code: orderCode(order.id), status: req.t(STATUS.entregado.label) });
+    } else if (result.order.partial_at) flash(req, 'ok', 'Entrega parcial guardada. Cuando llegue el resto, escanea el QR o marca el pedido como entregado.');
+    else flash(req, 'ok', 'No se ha marcado nada como entregado.');
+    res.redirect(`/admin/pedidos/${order.id}`);
   });
 
   // Borrar un pedido (p. ej. de prueba) con sus líneas e historial, esté como esté. No se avisa por correo.
