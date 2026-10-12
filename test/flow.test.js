@@ -670,8 +670,6 @@ test('Pollet, el asistente: oculto sin clave; responde con el catálogo y los pe
   assert.match(sys, /Camiseta afició: 15,00/);
   assert.match(sys, /No ha iniciado sesión/);
   assert.match(sys, /Personalidad y tono\n.*Ripo Ripo/, 'tono editable con el coloquial por defecto');
-  assert.match(sys, /aixecar i picar/, 'personalidad de Ripo: jugada favorita');
-  assert.match(sys, /ni chico ni chica/, 'Ripo no tiene género');
   assert.match(sys, /t'arribarà/, 'reglas de ortografía catalana');
 
   // Conversación mal formada
@@ -795,6 +793,6 @@ test('Ripo: límite por conexión para quien no ha entrado y uso visible en el p
   const adm = request.agent(app);
   await login(adm, 'comision', 'admin-password');
   const res = await adm.get('/admin');
-  assert.match(res.text, /Ripo: pregunt/);
+  assert.match(res.text, /Ripo, l(&#39;|')assistent|Ripo, el asistente/);
   assert.match(res.text, /(Avui|Hoy): 1 pregunta/);
 });

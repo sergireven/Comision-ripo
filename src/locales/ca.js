@@ -736,9 +736,4 @@ module.exports = {
   "Configuración": "Configuració",
   "Más": "Més",
   "Accesos rápidos": "Accessos ràpids",
-  "Ripo, del CH Ripollet": "Ripo, del CH Ripollet",
-  "Asistente del CH Ripollet": "L'assistent del CH Ripollet",
-  "¡Hola! Soy Ripo y juego en el CH Ripollet. Pregúntame lo que quieras: cuándo juegan nuestros equipos, la escuela de hockey, la tienda y tus pedidos, o la historia del club y de Ripollet.": "Hola! Sóc Ripo i jugo al CH Ripollet. Pregunta'm el que vulguis: quan juguen els nostres equips, l'escola d'hoquei, la botiga i les teves comandes, o la història del club i de Ripollet.",
-  "Respuestas automáticas: me puedo equivocar. Para pagos y cambios, habla con la comisión.": "Respostes automàtiques: em puc equivocar. Per a pagaments i canvis, parla amb la comissió.",
-  "Ripo: preguntas": "Ripo: preguntes",
 };

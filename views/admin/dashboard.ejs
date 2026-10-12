@@ -64,7 +64,7 @@
 </div>
 <% if (ripo) { %>
   <section class="card">
-    <h2><%= t('Ripo: preguntas') %></h2>
+    <h2><%= t('Ripo, el asistente') %></h2>
     <% const today = ripo.perDay[0] && ripo.perDay[0].day === new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }) ? ripo.perDay[0] : null; %>
     <p><%= t('Hoy: {n} pregunta(s) de {p} persona(s).', { n: today ? today.questions || 0 : 0, p: today ? today.people : 0 }) %>
       <span class="muted small"><%= t('Límite: {u} por persona y {t} en total al día.', { u: ripo.userLimit, t: ripo.totalLimit }) %></span></p>
